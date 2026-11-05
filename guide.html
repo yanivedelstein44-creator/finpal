@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'">
+  <title>FinPal משפחה: מדריך הקמה</title>
+  <link rel="icon" href="icons/icon-96.png">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .doc { max-width: 680px; margin: 0 auto; padding: calc(18px + var(--sat)) 18px 60px; }
+    .doc h1 { font-size: 26px; color: var(--navy); margin: 14px 0 6px; }
+    .doc h2 { font-size: 20px; color: var(--navy); margin: 28px 0 8px; padding-top: 6px; }
+    .doc h3 { font-size: 16px; color: var(--navy); margin: 18px 0 6px; }
+    .doc p, .doc li { font-size: 15.5px; }
+    .doc ol { padding-inline-start: 22px; } .doc li { margin: 7px 0; }
+    .doc code, .doc .v { direction: ltr; unicode-bidi: isolate; display: inline-block; background: var(--sheet); border: 1px solid var(--rule);
+      border-radius: 7px; padding: 1px 7px; font-size: 13.5px; overflow-wrap: anywhere; }
+    .doc .ui { font-weight: 600; color: var(--navy2); }
+    .toc a { display: block; padding: 6px 0; color: var(--navy2); text-decoration: none; font-weight: 500; }
+  </style>
+</head>
+<body>
+<main class="doc">
+  <img src="icons/icon-192.png" alt="" style="width:64px;height:64px;border-radius:18px">
+  <h1>מדריך הקמה: FinPal משפחה</h1>
+  <p class="muted">מקימים פעם אחת, בערך חצי שעה. אחר כך הכול עובד לבד, בשני הטלפונים.</p>
+  <div class="card tint-a"><p style="margin:0">אם האפליקציה כבר הועלתה וחוברה לגוגל בשבילכם (במסך "שמירה ב-Google Drive" כתוב שפרטי החיבור כבר מוגדרים), מדלגים ישר ל<a href="#phones">שלב 3</a>.</p></div>
+  <nav class="card toc">
+    <a href="#host">1. העלאת האפליקציה לאינטרנט (GitHub Pages, חינם)</a>
+    <a href="#google">2. חיבור ל-Google Drive</a>
+    <a href="#phones">3. התקנה בשני הטלפונים</a>
+    <a href="#trouble">אם משהו לא עובד</a>
+  </nav>
+
+  <h2 id="host">1. העלאת האפליקציה לאינטרנט</h2>
+  <p>האפליקציה היא אתר קטן שמותקן בטלפון. היא צריכה כתובת קבועה באינטרנט. GitHub Pages נותן כתובת כזו בחינם. באתר יש רק את קוד האפליקציה, בלי שום נתון שלכם.</p>
+  <ol>
+    <li>במחשב, נכנסים ל-<code>github.com</code> ופותחים חשבון (אם אין). שם המשתמש יהיה חלק מהכתובת, למשל <code>yaniv-e</code>.</li>
+    <li>לוחצים <span class="ui">New repository</span>. בשם כותבים <code>finpal</code>, משאירים <span class="ui">Public</span>, ולוחצים <span class="ui">Create repository</span>.</li>
+    <li>בעמוד שנפתח לוחצים על הקישור <span class="ui">uploading an existing file</span>.</li>
+    <li>פותחים את קובץ ה-zip שקיבלתם, נכנסים לתיקייה <code>finpal</code>, מסמנים את <b>כל מה שבתוכה</b> (Ctrl+A), וגוררים לחלון של GitHub. לוחצים <span class="ui">Commit changes</span>.</li>
+    <li>עוברים ל-<span class="ui">Settings</span> ← <span class="ui">Pages</span>. תחת <span class="ui">Branch</span> בוחרים <code>main</code> ולוחצים <span class="ui">Save</span>.</li>
+    <li>אחרי דקה-שתיים מופיעה למעלה הכתובת של האפליקציה, למשל <code>https://yaniv-e.github.io/finpal/</code>. רושמים אותה.</li>
+  </ol>
+  <p class="small">עדכון לגרסה חדשה בעתיד: אותו דבר, גוררים את הקבצים החדשים ל-<span class="ui">Add file</span> ← <span class="ui">Upload files</span>. הנתונים בטלפונים לא מושפעים.</p>
+  <div class="card tint-gold"><p style="margin:0"><b>חשוב:</b> כל האתרים של אותו חשבון GitHub חולקים כתובת אחת (<code>USERNAME.github.io</code>), והדפדפן רואה בהם אתר אחד. לכן לא מפרסמים מאותו חשבון אתרים אחרים ב-GitHub Pages, ולא נותנים לאחרים הרשאת עריכה ל-repository. אתר אחר באותה כתובת יוכל לקרוא את מה שהאפליקציה שומרת בטלפון.</p></div>
+
+  <h2 id="google">2. חיבור ל-Google Drive</h2>
+  <p>כדי שהאפליקציה תוכל לשמור קובץ מוצפן בדרייב שלכם, יוצרים לה "זהות" בחשבון הגוגל שלכם. בסוף יהיו לכם שני ערכים: <b>מזהה לקוח</b> ו<b>מפתח API</b>. את שניהם מדביקים באפליקציה.</p>
+  <div class="card tint-gold"><p style="margin:0">הכתובות שתצטרכו (מתמלאות לבד כשפותחים את המדריך מתוך האפליקציה):<br>
+    מקור: <span class="v" data-fill="origin">https://USERNAME.github.io</span><br>
+    כתובת האפליקציה: <span class="v" data-fill="base">https://USERNAME.github.io/finpal/</span></p></div>
+
+  <h3>א. פרויקט</h3>
+  <ol>
+    <li>נכנסים ל-<code>console.cloud.google.com</code> עם חשבון הגוגל שלך, ומאשרים את התנאים אם צריך.</li>
+    <li>למעלה, ליד הלוגו, לוחצים על בחירת הפרויקט ← <span class="ui">New project</span>. שם: <code>FinPal</code> ← <span class="ui">Create</span>. מוודאים שהפרויקט החדש נבחר.</li>
+  </ol>
+  <h3>ב. הפעלת Google Drive API</h3>
+  <ol>
+    <li>בשורת החיפוש למעלה כותבים <code>Google Drive API</code>, ובוחרים אותו.</li>
+    <li>לוחצים <span class="ui">Enable</span>.</li>
+  </ol>
+  <h3>ג. מסך ההסכמה (Google Auth Platform)</h3>
+  <ol>
+    <li>בחיפוש כותבים <code>Google Auth Platform</code> ונכנסים. לוחצים <span class="ui">Get started</span>.</li>
+    <li>שם האפליקציה: <code>FinPal משפחה</code>. אימייל לתמיכה: האימייל שלך ← <span class="ui">Next</span>.</li>
+    <li>Audience: בוחרים <span class="ui">External</span> ← <span class="ui">Next</span>. אימייל ליצירת קשר: שוב שלך ← <span class="ui">Next</span>. מסמנים הסכמה ← <span class="ui">Create</span>.</li>
+    <li>בתפריט הצד: <span class="ui">Audience</span> ← <span class="ui">Publish app</span> ← <span class="ui">Confirm</span>. האפליקציה מבקשת רק גישה לקבצים שהיא עצמה יוצרת, ולכן גוגל לא דורשת אימות. <span class="small">(אפשרות אחרת: להשאיר במצב Testing ולהוסיף תחת Test users את האימיילים של שניכם.)</span></li>
+    <li>בתפריט הצד: <span class="ui">Data Access</span> ← <span class="ui">Add or remove scopes</span>. בחיפוש כותבים <code>drive.file</code>, מסמנים את השורה <code>.../auth/drive.file</code> ← <span class="ui">Update</span> ← <span class="ui">Save</span>.</li>
+  </ol>
+  <h3>ד. מזהה הלקוח (Client ID)</h3>
+  <ol>
+    <li>בתפריט הצד: <span class="ui">Clients</span> ← <span class="ui">Create client</span>.</li>
+    <li>Application type: <span class="ui">Web application</span>. שם: <code>FinPal</code>.</li>
+    <li>תחת <span class="ui">Authorized JavaScript origins</span> ← <span class="ui">Add URI</span>, ומדביקים את המקור: <span class="v" data-fill="origin">https://USERNAME.github.io</span> (בלי לוכסן בסוף).</li>
+    <li>תחת <span class="ui">Authorized redirect URIs</span> ← <span class="ui">Add URI</span>, ומדביקים את כתובת האפליקציה: <span class="v" data-fill="base">https://USERNAME.github.io/finpal/</span> (עם לוכסן בסוף).</li>
+    <li><span class="ui">Create</span>. מעתיקים את ה-<b>Client ID</b> (נגמר ב-<code>apps.googleusercontent.com</code>). את ה-Client secret לא צריך.</li>
+  </ol>
+  <h3>ה. מפתח ה-API</h3>
+  <ol>
+    <li>בחיפוש כותבים <code>Credentials</code> ונכנסים ל-<span class="ui">APIs &amp; Services ← Credentials</span>.</li>
+    <li><span class="ui">Create credentials</span> ← <span class="ui">API key</span>. מעתיקים את המפתח (מתחיל ב-<code>AIza</code>) ולוחצים <span class="ui">Edit API key</span>.</li>
+    <li>תחת <span class="ui">Application restrictions</span> בוחרים <span class="ui">Websites</span> ← <span class="ui">Add</span>, ומקלידים: <span class="v" data-fill="ref">https://USERNAME.github.io/*</span></li>
+    <li>תחת <span class="ui">API restrictions</span> בוחרים <span class="ui">Restrict key</span>, ומסמנים רק את <span class="ui">Google Drive API</span>. <span class="ui">Save</span>.</li>
+  </ol>
+  <p>זהו. את שני הערכים מדביקים באפליקציה, בשלב "שמירה ב-Google Drive" (או אחר כך: עוד ← פרטי החיבור לגוגל).</p>
+
+  <h2 id="phones">3. התקנה בשני הטלפונים</h2>
+  <h3>הטלפון שלך</h3>
+  <ol>
+    <li>פותחים בכרום את כתובת האפליקציה.</li>
+    <li>לוחצים <span class="ui">מתחילים</span>: שמות, קוד נעילה, קוד שחזור (שומרים אותו!), ואז מדביקים את שני הערכים ומתחברים לגוגל.</li>
+    <li>במסך של גוגל מסמנים את התיבה שמאשרת גישה לקבצים של FinPal. אם מופיע "Google hasn't verified this app", לוחצים <span class="ui">Advanced</span> ← <span class="ui">Go to FinPal</span>: זו האפליקציה שלכם.</li>
+    <li>מזמינים את בן/בת הזוג: נשלח קישור בוואטסאפ, ואת הקוד אומרים בעל פה.</li>
+    <li>בתפריט של כרום (שלוש הנקודות) בוחרים <span class="ui">הוספה למסך הבית</span> או <span class="ui">התקנת אפליקציה</span>.</li>
+  </ol>
+  <h3>הטלפון של בן/בת הזוג</h3>
+  <ol>
+    <li>פותחים את הקישור מוואטסאפ (בכרום), מקלידים את הקוד, בוחרים קוד נעילה, ומוסיפים למסך הבית.</li>
+    <li>כבר עכשיו רואים את כל הנתונים. כדי לייבא קבצים גם מהטלפון הזה, מתחברים לגוגל פעם אחת, ושולחים קישור חיבור (האפליקציה תציע).</li>
+  </ol>
+  <h3>ייבוא קבצים</h3>
+  <p>מורידים קובץ תנועות מאתר לאומי או MAX, ואז באפליקציה לוחצים על כפתור הייבוא, או בתיקיית ההורדות: לחיצה ארוכה על הקובץ ← שיתוף ← FinPal.</p>
+
+  <h2 id="trouble">אם משהו לא עובד</h2>
+  <ol>
+    <li><b>redirect_uri_mismatch</b>: הכתובת שנרשמה בשלב ד' לא זהה בדיוק לכתובת האפליקציה. בודקים https, אותיות קטנות, ולוכסן בסוף.</li>
+    <li><b>access_blocked</b> או <b>Access denied</b>: האפליקציה במצב Testing, והאימייל לא ברשימת Test users. מוסיפים אותו, או לוחצים Publish app.</li>
+    <li><b>"צריך לסמן את האישור"</b>: במסך של גוגל לא סומנה התיבה של הגישה לקבצים. מתחברים שוב ומסמנים.</li>
+    <li><b>"גוגל סירבה לבקשה"</b>: בודקים ש-Google Drive API מופעל (שלב ב'), ושבמפתח ה-API הכתובת בשלב ה' נכונה.</li>
+    <li><b>שכחתי את קוד הנעילה</b>: עוד ← מחיקת הנתונים מהטלפון, ואז נכנסים עם קוד השחזור (או עם הזמנה חדשה). מה שבדרייב לא נמחק.</li>
+  </ol>
+  <p class="small" style="margin-top:30px">FinPal משפחה לא מתחברת לבנק ולא לחברות האשראי, ואין לה שרת. הנתונים שמורים בטלפונים, ובדרייב נשמר רק קובץ מוצפן. <a href="privacy.html">מדיניות הפרטיות</a></p>
+</main>
+<script src="guide.js"></script>
+</body>
+</html>

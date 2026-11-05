@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'">
+  <title>FinPal משפחה: מדיניות פרטיות</title>
+  <link rel="icon" href="icons/icon-96.png">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .doc { max-width: 680px; margin: 0 auto; padding: calc(18px + var(--sat)) 18px 60px; }
+    .doc h1 { font-size: 26px; color: var(--navy); margin: 14px 0 6px; }
+    .doc h2 { font-size: 19px; color: var(--navy); margin: 26px 0 8px; }
+    .doc p, .doc li { font-size: 15.5px; }
+    .doc ul { padding-inline-start: 22px; } .doc li { margin: 6px 0; }
+    .doc code { direction: ltr; unicode-bidi: isolate; display: inline-block; background: var(--sheet); border: 1px solid var(--rule);
+      border-radius: 7px; padding: 1px 7px; font-size: 13.5px; overflow-wrap: anywhere; }
+    .en { direction: ltr; text-align: left; }
+    .en h2 { margin-top: 34px; }
+  </style>
+</head>
+<body>
+<main class="doc">
+  <img src="icons/icon-192.png" alt="" style="width:64px;height:64px;border-radius:18px">
+  <h1>מדיניות פרטיות: FinPal משפחה</h1>
+  <p class="muted">עודכן: נובמבר 2026</p>
+  <p>FinPal משפחה היא אפליקציה פרטית לניהול הכסף של משפחה אחת: שני בני זוג רואים את אותם נתונים, כל אחד בטלפון שלו. לאפליקציה אין שרת, אין בה פרסומות, ואין בה כלי מעקב או סטטיסטיקה.</p>
+
+  <h2>אילו נתונים האפליקציה קוראת</h2>
+  <ul>
+    <li><b>קבצי תנועות</b> מהבנק או מכרטיסי האשראי, שהורדתם בעצמכם ובחרתם לייבא. האפליקציה לא מתחברת לבנק או לחברות האשראי, ולא מבקשת סיסמאות שלהם.</li>
+    <li><b>Google Drive</b>, רק באישור שלכם: הרשאה מסוג <code>drive.file</code>, שנותנת גישה רק לקבצים שהאפליקציה עצמה יצרה. האפליקציה לא רואה שום קובץ אחר בדרייב.</li>
+    <li><b>כתובת האימייל של חשבון הגוגל</b>: מוצגת באפליקציה כדי שתדעו לאיזה חשבון היא מחוברת, ומשמשת להצעת אותו חשבון בהתחברות הבאה.</li>
+  </ul>
+
+  <h2>איפה הנתונים נשמרים</h2>
+  <ul>
+    <li><b>בטלפון</b>: באחסון של הדפדפן בטלפון בלבד, והאפליקציה ננעלת בקוד.</li>
+    <li><b>ב-Google Drive של כל אחד מבני הזוג</b>: קובץ אחד, מוצפן (AES-256-GCM). המפתח נמצא רק בשני הטלפונים של המשפחה ובקוד השחזור שלה. לגוגל ולכל מי שאין לו את המפתח, הקובץ הוא רצף תווים חסר משמעות.</li>
+    <li>כדי שהטלפון של בן/בת הזוג יוכל לקרוא את הקובץ, הוא משותף בקישור ("כל מי שיש לו את הקישור"). הקישור לא מתפרסם בשום מקום, ובלי המפתח אי אפשר לפתוח את התוכן.</li>
+  </ul>
+
+  <h2>עם מי הנתונים משותפים</h2>
+  <p>עם אף אחד. המידע מ-Google לא נמכר, לא מועבר לאף גורם, ולא משמש לפרסום או לשום מטרה מלבד הצגת הנתונים של המשפחה לשני בני הזוג. מי שבנה את האפליקציה לא מקבל שום נתון. השימוש במידע שמתקבל מ-Google APIs עומד ב-Google API Services User Data Policy, כולל דרישות ה-Limited Use.</p>
+  <p>האתר עצמו מאוחסן ב-GitHub Pages. כמו כל אתר, GitHub עשויה לרשום מידע טכני על הגישה לאתר (למשל כתובת IP), לפי מדיניות הפרטיות שלה. הנתונים הכספיים לא עוברים דרך GitHub.</p>
+
+  <h2>מחיקה וביטול גישה</h2>
+  <ul>
+    <li>מחיקה מהטלפון: באפליקציה, <b>עוד ← מחיקת הנתונים מהטלפון הזה</b>.</li>
+    <li>מחיקה מהדרייב: מוחקים ב-Google Drive את הקובץ שמתחיל ב-<code>FinPal</code>.</li>
+    <li>ביטול הגישה לדרייב: בדף ההרשאות של חשבון הגוגל, <code>myaccount.google.com/permissions</code>, בוחרים ב-FinPal ומסירים את הגישה.</li>
+  </ul>
+  <p>לשאלות על האפליקציה פונים למי ששלח לכם את הקישור אליה.</p>
+
+  <section class="en" lang="en" dir="ltr">
+    <h2>Privacy policy (English summary)</h2>
+    <p>FinPal Family is a private budgeting app for one household. It has no server, no ads and no analytics.</p>
+    <ul>
+      <li>It reads only bank and credit card statement files that the user downloads and chooses to import. It never connects to a bank.</li>
+      <li>With the user's consent it uses the Google Drive <code>drive.file</code> scope, which gives access only to files the app itself created, and the account's email address (shown in the app and used as a sign-in hint).</li>
+      <li>Each partner's Drive holds one file encrypted with AES-256-GCM. The key exists only on the family's two phones and in their recovery code. The file is shared by link so the partner's phone can download it; without the key its content cannot be read.</li>
+      <li>Google user data is not sold, transferred or used for advertising or any purpose other than showing the household's data to its two members. FinPal Family's use of information received from Google APIs adheres to the Google API Services User Data Policy, including the Limited Use requirements.</li>
+      <li>Users can delete local data in the app (More, then delete data from this phone), delete the Drive file, and revoke access at <code>myaccount.google.com/permissions</code>.</li>
+    </ul>
+  </section>
+</main>
+</body>
+</html>
