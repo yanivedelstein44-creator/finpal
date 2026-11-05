@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="appName">FinPal משפחה</string>
+    <string name="launcherName">FinPal</string>
+    <string name="launchUrl">https://yanivedelstein44-creator.github.io/finpal/</string>
+    <string name="webManifestUrl">https://yanivedelstein44-creator.github.io/finpal/manifest.webmanifest</string>
+    <string name="hostName">yanivedelstein44-creator.github.io</string>
+    <string name="providerAuthority">io.github.yanivedelstein44.finpal.fileprovider</string>
+    <string name="assetStatements" translatable="false">[{\"relation\":[\"delegate_permission/common.handle_all_urls\"],\"target\":{\"namespace\":\"web\",\"site\":\"https://yanivedelstein44-creator.github.io\"}}]</string>
+    <string name="shareTarget" translatable="false">{\"action\":\"https://yanivedelstein44-creator.github.io/finpal/share\",\"method\":\"POST\",\"enctype\":\"multipart/form-data\",\"params\":{\"title\":\"title\",\"text\":\"text\",\"files\":[{\"name\":\"files\",\"accept\":[\"application/vnd.ms-excel\",\".xls\",\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\",\".xlsx\",\"text/csv\",\"text/comma-separated-values\",\".csv\",\"text/xml\",\"application/xml\",\".xml\",\"text/html\",\".html\",\".htm\",\"application/octet-stream\"]}]}}</string>
+</resources>

@@ -1,0 +1,38 @@
+// FinPal Family for Android: a Trusted Web Activity. The app opens the FinPal site full screen in Chrome,
+// so every change to the site reaches the app by itself, and the data stays where the site keeps it.
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'io.github.yanivedelstein44.finpal'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'io.github.yanivedelstein44.finpal'
+        minSdk 21
+        targetSdk 35
+        versionCode 1
+        versionName '1.0.0'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
+    }
+}
+
+dependencies {
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
+}
