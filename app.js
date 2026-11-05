@@ -329,6 +329,7 @@ const actions = {
   signIn, errorText,
   refresh: () => refreshScreen(),
   signedIn: () => !!D.token(),
+  inApp: () => F.inApp(),
   version: () => APP_VERSION,
   enterApp: () => enterApp(),
   afterJoin: async () => { try { await fam.pull(); } catch (e) { S.syncError = e; } await safeRebuild(); },

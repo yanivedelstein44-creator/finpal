@@ -1,7 +1,7 @@
 /* FinPal Family - service worker: the app opens without network, and files shared from the Android share
    sheet ("שיתוף" -> FinPal) are kept until the app takes them. The asset list and version are written by
    tools/build.py. */
-const VERSION = '1.0.0-285708fefc';
+const VERSION = '1.0.0-9ee563b203';
 const ASSETS = ["app.js", "config.js", "fonts/IBMPlexSansHebrew-Medium.ttf", "fonts/IBMPlexSansHebrew-Regular.ttf", "fonts/IBMPlexSansHebrew-SemiBold.ttf", "fonts/OFL-IBMPlexSansHebrew.txt", "guide.html", "guide.js", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-96.png", "icons/maskable-192.png", "icons/maskable-512.png", "index.html", "lib/crypto.js", "lib/drive.js", "lib/engine.js", "lib/family.js", "lib/parsers.js", "lib/replay.js", "lib/store.js", "lib/vendor/fflate.js", "manifest.webmanifest", "privacy.html", "styles.css", "ui/flows.js", "ui/kit.js", "ui/views.js", "version.json", "worker.js"];
 const CACHE = 'finpal-family-' + VERSION;
 const BASE = self.registration.scope;
@@ -68,6 +68,7 @@ self.addEventListener('fetch', event => {
     // the app's own pages (the guide, the privacy page) open as themselves; anything else in the scope is the app
     event.respondWith((async () => {
       const page = /\.html$/.test(url.pathname) && !/\/index\.html$/.test(url.pathname);
+      if (/\.[a-z0-9]+$/i.test(url.pathname) && !/\.html$/.test(url.pathname)) return fetch(req); // a download (the APK)
       if (page) {
         const hit = await caches.match(url.origin + url.pathname, { ignoreSearch: true });
         if (hit) return hit;

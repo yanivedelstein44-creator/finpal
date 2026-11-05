@@ -14,16 +14,17 @@ const screen = html => { const el = $('#screen'); el.innerHTML = html; el.classL
 export const hideScreen = () => { $('#screen').classList.add('hidden'); $('#screen').innerHTML = ''; };
 const steps = (n, of) => `<div class="steps" aria-label="שלב ${n} מתוך ${of}">${Array.from({ length: of }, (_, i) => `<i class="${i < n ? 'on' : ''}"></i>`).join('')}</div>`;
 const logo = '<img class="logo" src="icons/icon-192.png" alt="">';
-const standalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+export const inApp = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true
+  || /^android-app:/.test(document.referrer || '') || sessionStorage.getItem('fp_app') === '1';
+try { if (/^android-app:/.test(document.referrer || '')) sessionStorage.setItem('fp_app', '1'); } catch (e) { /* ignore */ }
 
-/** on the welcome screen: install the app from the link itself (the browser's own offer is shown here) */
+/** on the welcome screen: the Android app (APK) from the site itself, or the browser's own install */
 export function installSlot() {
   const box = $('#wInstall');
   if (!box) return;
-  if (standalone()) { box.innerHTML = ''; return; }
-  box.innerHTML = S.installEvent
-    ? `<button class="btn gold" data-w="install">${icon('download')} התקנת FinPal בטלפון</button>`
-    : '<p class="small install-hint">להתקנה כאפליקציה: בתפריט של כרום (שלוש הנקודות) בוחרים "התקנת אפליקציה" או "הוספה למסך הבית".</p>';
+  if (inApp()) { box.innerHTML = ''; return; }
+  box.innerHTML = `<a class="btn gold" href="FinPal.apk" download="FinPal.apk" data-w="apk">${icon('download')} הורדת האפליקציה לאנדרואיד</a>
+    <p class="small install-hint">אחרי ההורדה פותחים את הקובץ ומאשרים התקנה.${S.installEvent ? ' <button class="linkish" data-w="install">או התקנה מהירה דרך כרום</button>' : ''}</p>`;
   const b = $('[data-w="install"]', box);
   if (b) b.onclick = () => A.act('install');
 }

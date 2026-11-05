@@ -347,7 +347,7 @@ export function viewMore() {
     <button class="btn ghost" data-act="lock-now">נעילה עכשיו</button></section>`;
   // app
   html += `<section class="card"><h2>${icon('phone')} האפליקציה</h2>
-    ${S.installEvent ? '<button class="btn primary" data-act="install">הוספה למסך הבית</button>' : ''}
+    ${A.inApp() ? '' : `<a class="btn primary" href="FinPal.apk" download="FinPal.apk">${icon('download')} הורדת האפליקציה לאנדרואיד</a>`}
     <button class="btn" data-act="howto">איך מורידים קבצים מהבנק ומהאשראי</button>
     <a class="btn" href="guide.html" target="_blank" rel="noopener">מדריך ההקמה ותקלות נפוצות</a>
     <button class="btn" data-act="privacy">איפה הנתונים שלנו נשמרים</button>
