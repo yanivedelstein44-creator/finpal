@@ -1,7 +1,7 @@
 /* FinPal Family - the screens: home, savings, transactions, months, more, and the pages behind them. */
 import {
   S, $, $$, esc, money, abs$, pct, fmt, monthLabel, monthName, shortMonth, dmy, dm, dayLabel, line, barRows, icon,
-  who, colorOf, avatar, daysLeftInMonth, ago, COLORS, notice
+  who, colorOf, avatar, daysLeftInMonth, ago, COLORS, notice, localDate
 } from './kit.js';
 
 let A = {}; // actions, set by app.js
@@ -56,6 +56,45 @@ function heroCard(d) {
       <div class="stat"><span>יצאו</span><b>${abs$(f.expense_actual)}</b></div>
       <div class="stat"><span>בעו״ש</span><b>${d.balance && d.balance.amount != null ? money(d.balance.amount) : '—'}</b></div>
     </div>${meter}</section>`;
+}
+
+/** the salaries and card charges that come every month: has each come this month, by the bank's file */
+export function expectedLine(i, asOf) {
+  const income = i.kind === 'income';
+  // "משכורת - בית חולים" under the title "משכורת": the payer only
+  const name = String(i.name || '').replace(/[-\s]י$/, '').replace(/^מקס איט.*$/, 'MAX').replace(/^משכורת\s*-\s*(?=\S)/, '');
+  const title = income ? `${i.category === 'משכורת' ? 'משכורת' : 'קצבה'}: ${esc(name)}` : `חיוב ${esc(name)}${i.card ? `, כרטיס ${esc(i.card)}` : ''}`;
+  const usual = `בדרך כלל ב-${i.day} לחודש, כ-${money(i.amount)}`;
+  let ic, cls, sub;
+  if (i.status === 'done') {
+    ic = 'checkCircle'; cls = 'ok';
+    sub = `${income ? 'נכנסה' : 'ירד'} ${money(i.actual)} ב-${dm(i.date)}${!income && i.detail === false ? '. אין פירוט: כדאי לייבא את דף האשראי' : ''}`;
+  } else if (i.status === 'late') {
+    ic = 'alert'; cls = 'bad';
+    sub = `${income ? 'לא נכנסה' : 'לא ירד'} עד ${dm(asOf)}. ${usual}`;
+  } else if (i.status === 'expected') {
+    ic = 'clock'; cls = 'wait';
+    sub = `${income ? 'עוד לא נכנסה' : 'עוד לא ירד'}. ${usual}`;
+  } else {
+    ic = 'clock'; cls = 'same';
+    sub = usual;
+  }
+  return `<div class="result">${icon(ic, cls)}<div><b class="ellip">${title}</b><span class="small">${sub}</span></div></div>`;
+}
+
+function expectedCard(d) {
+  const e = d.expected || {};
+  const items = e.items || [];
+  if (!items.length || !e.as_of) return '';
+  const today = localDate();
+  const days = Math.round((Date.parse(today) - Date.parse(e.as_of)) / 864e5);
+  // the bank's file ends some days ago: what came after it cannot show yet
+  const old = days >= 3 && items.some(i => i.status === 'expected' && i.day < +today.slice(8, 10));
+  const late = items.filter(i => i.status === 'late').length;
+  return `<section class="card"><h2>מה נכנס ומה עוד צפוי <small>לפי דף הבנק עד ${dm(e.as_of)}</small></h2>
+    ${late ? notice(`${late === 1 ? 'משהו שמגיע כל חודש לא הופיע' : `${late} דברים שמגיעים כל חודש לא הופיעו`} בדף הבנק בזמן. כדאי לבדוק.`) : ''}
+    ${items.map(i => expectedLine(i, e.as_of)).join('')}
+    ${old ? `<p class="small" style="margin:8px 0 0">דף הבנק שיובא מסתיים ב-${dm(e.as_of)}. כדי לראות מה נכנס וירד מאז, ייבאו דף חשבון עדכני.</p>` : ''}</section>`;
 }
 
 function splitCard() {
@@ -115,7 +154,7 @@ function alertsCard() {
 export function viewHome() {
   if (!hasData()) return emptyHome();
   const d = S.data;
-  return `${heroCard(d)}${tipPreview(d)}${splitCard()}${flowCard(d)}${catsCard(d)}${alertsCard()}`;
+  return `${heroCard(d)}${expectedCard(d)}${tipPreview(d)}${splitCard()}${flowCard(d)}${catsCard(d)}${alertsCard()}`;
 }
 
 // ------------------------------------------------------------------ savings

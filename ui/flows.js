@@ -5,6 +5,7 @@ import {
   notice, copyText, shareText, ago
 } from './kit.js';
 import * as C from '../lib/crypto.js';
+import * as V from './views.js';
 import * as D from '../lib/drive.js';
 
 let A = {}; // app actions
@@ -464,7 +465,10 @@ export function importResults(results, newCards) {
     return `<div class="result">${icon(ic, cls)}<div><b class="ellip">${esc(head)}</b><span class="small">${esc(text)}</span></div></div>`;
   }).join('');
   const added = results.reduce((a, r) => a + (r.added || 0), 0);
-  sheet(`<h3>${added ? `נוספו ${fmt(added)} תנועות` : 'הייבוא הסתיים'}</h3>${rows}
+  const ex = (S.data && S.data.expected) || {};
+  const late = (ex.items || []).filter(i => i.status === 'late');
+  const lateHtml = late.length ? `<p style="margin:14px 0 4px;color:var(--ink)">לא הופיעו בדף הבנק בזמן:</p>${late.map(i => V.expectedLine(i, ex.as_of)).join('')}` : '';
+  sheet(`<h3>${added ? `נוספו ${fmt(added)} תנועות` : 'הייבוא הסתיים'}</h3>${rows}${lateHtml}
     ${newCards.length ? `<p style="margin:14px 0 6px;color:var(--ink)">יש ${newCards.length === 1 ? 'כרטיס חדש' : `${newCards.length} כרטיסים חדשים`}. של מי?</p><div id="ownerBox"></div>` : ''}
     <button class="btn primary" id="irDone" style="margin-top:14px">${newCards.length ? 'אחר כך' : 'סגירה'}</button>`);
   $('#irDone').onclick = closeSheet;

@@ -264,7 +264,7 @@ ol.how li { margin: 6px 0; }
 .result { display: grid; grid-template-columns: 26px 1fr; gap: 10px; padding: 10px 0; align-items: start; }
 .result + .result { border-top: 1px solid var(--hair); }
 .result svg { width: 22px; height: 22px; }
-.result .ok { color: var(--green); } .result .bad { color: var(--rose); } .result .same { color: var(--ink3); }
+.result .ok { color: var(--green); } .result .bad { color: var(--rose); } .result .same { color: var(--ink3); } .result .wait { color: var(--gold); }
 .result b { display: block; font-weight: 600; }
 .owner-pick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
 .owner-pick button { border: 1px solid var(--rule); background: var(--sheet); border-radius: 12px; padding: 10px 6px; font-weight: 500; }
