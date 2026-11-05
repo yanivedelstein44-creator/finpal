@@ -88,6 +88,11 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round
 .card.tint-a { background: var(--a-tint); border-color: transparent; }
 .card.tint-gold { background: var(--gold-tint); border-color: transparent; }
 .card.tap { cursor: pointer; }
+.hero.tap { cursor: pointer; }
+.hero .say u { color: #fff; text-underline-offset: 3px; }
+.line[data-off] { opacity: .55; }
+.fc h4 { margin: 16px 0 2px; font-size: 15px; display: flex; justify-content: space-between; }
+.fc .sum { border-top: 2px solid var(--hair); margin-top: 8px; padding-top: 10px; font-weight: 600; }
 .line { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 9px 0; }
 .line + .line { border-top: 1px solid var(--hair); }
 .line .lbl { min-width: 0; }

@@ -1,7 +1,7 @@
 /* FinPal Family - the screens: home, savings, transactions, months, more, and the pages behind them. */
 import {
   S, $, $$, esc, money, abs$, pct, fmt, monthLabel, monthName, shortMonth, dmy, dm, dayLabel, line, barRows, icon,
-  who, colorOf, avatar, daysLeftInMonth, ago, COLORS
+  who, colorOf, avatar, daysLeftInMonth, ago, COLORS, notice
 } from './kit.js';
 
 let A = {}; // actions, set by app.js
@@ -47,10 +47,10 @@ function heroCard(d) {
     return `<div class="meter"><span style="width:${Math.min(100, Math.max(0, +b.pct))}%;background:${col}"></span></div>
       <div class="meter-note">יצאו ${pct(b.pct)} מההכנסות שצפויות להיכנס החודש</div>`;
   })() : '';
-  return `<section class="hero" aria-label="החודש במבט אחד">
+  return `<section class="hero${n == null ? '' : ' tap'}" aria-label="החודש במבט אחד"${n == null ? '' : ' data-act="forecast" role="button" tabindex="0"'}>
     <div class="k">${esc(monthLabel(d.month))} · צפי לסוף החודש</div>
     <div class="big ${n < 0 ? 'neg' : ''}">${n == null ? '—' : money(n, true)}</div>
-    <div class="say">${n == null ? '' : n >= 0 ? 'זה מה שיישאר לכם אם הקצב יימשך' : 'זה מה שיחסר אם הקצב יימשך'}</div>
+    <div class="say">${n == null ? '' : `${n >= 0 ? 'זה מה שצפוי להישאר בסוף החודש' : 'זה מה שצפוי לחסור בסוף החודש'}, לפי מה שכבר עבר החודש והממוצע שלכם. <u>איך חישבנו?</u>`}</div>
     <div class="stats">
       <div class="stat"><span>נכנסו</span><b>${abs$(f.income_actual)}</b></div>
       <div class="stat"><span>יצאו</span><b>${abs$(f.expense_actual)}</b></div>
@@ -199,18 +199,18 @@ export function viewTx() {
   let html = `<input class="search" id="txSearch" type="search" placeholder="חיפוש לפי בית עסק או קטגוריה" value="${esc(S.txQuery)}" aria-label="חיפוש">
     <div class="filters"><select id="txOwner" aria-label="של מי"><option value="">כולם</option>${owners.map(o => `<option ${o === S.txOwner ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>
     <select id="txCat" aria-label="קטגוריה"><option value="">כל הקטגוריות</option>${cats.map(c => `<option ${c === S.txCat ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></div>`;
-  const sum = list.reduce((a, t) => a + t.a, 0);
-  html += `<p class="small" style="margin:6px 2px 0">${fmt(list.length)} תנועות, סה״כ ${money(sum, true)}. הקישו על תנועה כדי לשנות קטגוריה.</p>`;
+  const sum = list.reduce((a, t) => a + (t.x ? 0 : t.a), 0);
+  html += `<p class="small" style="margin:6px 2px 0">${fmt(list.length)} תנועות, סה״כ ${money(sum, true)}. הקישו על תנועה כדי לשנות קטגוריה. תנועות באפור לא נספרות.</p>`;
   const byDay = new Map();
   list.slice(0, S.txLimit).forEach((t, i) => { if (!byDay.has(t.d)) byDay.set(t.d, []); byDay.get(t.d).push(t); });
   const totals = new Map();
-  list.forEach(t => totals.set(t.d, (totals.get(t.d) || 0) + t.a));
+  list.forEach(t => totals.set(t.d, (totals.get(t.d) || 0) + (t.x ? 0 : t.a)));
   byDay.forEach((rows, d) => {
     html += `<div class="day"><span>${dayLabel(d)}</span>${money(totals.get(d), true)}</div><div class="tx">${rows.map(t => {
-      const sub = [t.p ? 'בקליטה' : '', t.c, t.o, t.card ? `כרטיס ${t.card}` : '', t.i ? `תשלום ${String(t.i).replace('/', ' מתוך ')}` : '',
+      const sub = [t.x ? 'לא נספר' : '', t.p ? 'בקליטה' : '', t.c, t.o, t.card ? `כרטיס ${t.card}` : '', t.i ? `תשלום ${String(t.i).replace('/', ' מתוך ')}` : '',
         t.src === 'max' && t.cd && t.cd !== t.d ? `חיוב ב-${dm(t.cd)}` : ''].filter(Boolean).join(', ');
       return line(`<span class="ellip${t.p ? ' pend' : ''}"><span class="owner-bar" style="background:${colorOf(t.o)}"></span>${esc(t.s)}</span>`,
-        `<span class="${t.a > 0 ? 'pos' : ''}${t.p ? ' pend' : ''}">${money(t.a, true)}</span>`, esc(sub), '', t.u ? `data-tx="${esc(t.u)}"` : '');
+        `<span class="${t.a > 0 && !t.x ? 'pos' : ''}${t.p ? ' pend' : ''}">${money(t.a, true)}</span>`, esc(sub), '', `${t.u ? `data-tx="${esc(t.u)}"` : ''}${t.x ? ' data-off="1"' : ''}`);
     }).join('')}</div>`;
   });
   if (list.length > S.txLimit) html += `<button class="btn" id="txMore" style="margin-top:12px">עוד תנועות</button>`;
@@ -236,9 +236,34 @@ export function viewMonths() {
       <div style="margin-top:8px">${barRows([{ label: 'נכנסו', value: m.inc, color: 'var(--green)' }, { label: 'יצאו', value: m.exp, color: 'var(--gold)' }]
         .concat(m.sav ? [{ label: 'נחסך', value: m.sav, color: 'var(--navy2)' }] : []), mx2)}</div>
       ${open ? `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--hair)">${cats.length ? barRows(cats.map(c => ({ label: c.c, value: c.t, color: c.col })))
-        : '<p class="small" style="margin:0">פירוט לפי קטגוריה נשמר לחצי השנה האחרונה.</p>'}</div>` : ''}
+        : '<p class="small" style="margin:0">פירוט לפי קטגוריה נשמר לחצי השנה האחרונה.</p>'}${monthDetails(m.m)}</div>` : ''}
     </section>`;
   }).join('');
+  return html;
+}
+
+/** an open month: card charges with no details, and the biggest lines (tap one to change its category) */
+function monthDetails(month) {
+  const all = (S.data && S.data.transactions) || [];
+  const inMonth = all.filter(t => (t.src === 'max' ? t.cd || t.d : t.d).slice(0, 7) === month);
+  if (!inMonth.length) return '';
+  let html = '';
+  const undetailed = inMonth.filter(t => t.w === 'undetailed');
+  if (undetailed.length) {
+    const sum = undetailed.reduce((a, t) => a + t.a, 0);
+    html += notice(`${money(Math.abs(sum))} יצאו בחיובי אשראי בלי פירוט (${undetailed.map(t => dm(t.d)).filter((v, i, a) => a.indexOf(v) === i).join(', ')}). כדי לראות על מה, ייבאו את דף האשראי של החודש.`);
+  }
+  const big = inMonth.filter(t => !t.x && t.w !== 'undetailed').sort((a, b) => Math.abs(b.a) - Math.abs(a.a)).slice(0, 6);
+  if (big.length) {
+    html += `<p class="small" style="margin:12px 0 2px;color:var(--ink)">התנועות הגדולות <span class="muted">· הקישו כדי לשנות קטגוריה</span></p><div class="tx">${big.map(t =>
+      line(`<span class="ellip">${esc(t.s)}</span>`, `<span class="${t.a > 0 ? 'pos' : ''}">${money(t.a, true)}</span>`,
+        esc([dm(t.d), t.c, t.card ? `כרטיס ${t.card}` : ''].filter(Boolean).join(', ')), '', t.u ? `data-tx="${esc(t.u)}"` : '')).join('')}</div>`;
+  }
+  const off = inMonth.filter(t => t.x);
+  if (off.length) {
+    const sum = off.reduce((a, t) => a + Math.abs(t.a), 0);
+    html += `<p class="small" style="margin:10px 0 0">${fmt(off.length)} תנועות בסך ${money(sum)} לא נספרו: חיובי אשראי שהקניות שלהם מפורטות בנפרד, הלוואות והעברות בין החשבונות שלכם. הן מופיעות באפור בלשונית תנועות.</p>`;
+  }
   return html;
 }
 

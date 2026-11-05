@@ -490,7 +490,41 @@ export function ownerSheet(cards) {
   ownerRows($('#ownerBox'), cards, false);
 }
 
+// ------------------------------------------------------------------ how the forecast was made
+export function forecastSheet() {
+  const d = S.data || {}, f = d.forecast || {}, rows = d.forecast_rows || [];
+  if (f.net_forecast == null) return;
+  const z = v => (Math.abs(v || 0) < 0.5 ? 0 : v);
+  const part = (list, total, verb) => {
+    const shown = list.filter(r => z(r.forecast) || z(r.actual)).slice(0, 8);
+    const rest = total - shown.reduce((a, r) => a + r.forecast, 0);
+    return shown.map(r => {
+      const more = z(r.forecast - r.actual);
+      return line(esc(r.category), money(r.forecast),
+        more > 0 ? `${verb} עד עכשיו ${money(z(r.actual))}, בדרך כלל ${money(r.avg)}: צפויים עוד ${money(more)}` : `${verb} עד עכשיו ${money(z(r.actual))}, יותר מהרגיל`);
+    }).join('') + (z(rest) > 0 ? line('<span class="muted">שאר הקטגוריות</span>', money(rest)) : '');
+  };
+  const inc = rows.filter(r => r.kind === 'income'), exp = rows.filter(r => r.kind === 'expense'), sav = rows.filter(r => r.kind === 'saving');
+  const n = f.net_forecast;
+  sheet(`<div class="fc"><h3>איך חישבנו את הצפי</h3>
+    <p class="small" style="margin:0">לכל קטגוריה לוקחים את הגבוה מבין שניים: מה שכבר נכנס או יצא בה החודש, או הממוצע שלה בשלושת החודשים הקודמים. כך הצפי מניח שמה שבדרך כלל קורה בחודש עוד יקרה, למשל משכורת שעוד לא נכנסה. חיוב אשראי נספר בחודש שבו הוא יורד מהבנק.</p>
+    <h4><span>הכנסות צפויות</span>${money(f.income_forecast)}</h4>${part(inc, f.income_forecast || 0, 'נכנסו')}
+    <h4><span>הוצאות צפויות</span>${money(f.expense_forecast)}</h4>${part(exp, f.expense_forecast || 0, 'יצאו')}
+    ${z(f.saving_forecast) ? `<h4><span>חיסכון צפוי</span>${money(f.saving_forecast)}</h4>${part(sav, f.saving_forecast, 'הועברו')}` : ''}
+    ${line(`<b>${n >= 0 ? 'צפוי להישאר' : 'צפוי לחסור'}</b>`, `<b class="${n >= 0 ? 'pos' : 'neg'}">${money(n, true)}</b>`, `הכנסות פחות הוצאות${z(f.saving_forecast) ? ' וחיסכון' : ''}`, '', 'style="border-top:2px solid var(--hair);margin-top:8px"')}
+    <p class="small">המספר לא מבוסס על חלוקה של מה שיצא עד היום במספר הימים, ולכן הוא לא קופץ בתחילת החודש. כשמייבאים קבצים חדשים, הוא מתעדכן.</p>
+    <button class="btn primary" id="fcDone">הבנתי</button></div>`);
+  $('#fcDone').onclick = closeSheet;
+}
+
 // ------------------------------------------------------------------ a transaction
+const WHY = {
+  settle: 'לא נספר: זה חיוב האשראי בבנק, והקניות שמאחוריו מפורטות בנפרד מדף האשראי. כך שום הוצאה לא נספרת פעמיים.',
+  undetailed: 'חיוב אשראי בלי פירוט: דף האשראי של החודש הזה לא יובא, ולכן הוא נספר כהוצאה אחת. אחרי ייבוא הדף יופיעו הקניות עצמן.',
+  internal: 'לא נספר כהכנסה או כהוצאה: הלוואה, או כסף שעבר בין החשבונות שלכם.',
+  salary: 'סווג כמשכורת כי סכום דומה נכנס מאותו מקום כמעט כל חודש.',
+  moved: 'סווג כחיסכון: זו העברה של כסף שנמשך מחיסכון או מקופת גמל ימים ספורים לפני כן, ולא הוצאה.',
+};
 export function txSheet(uid) {
   const t = ((S.data && S.data.transactions) || []).find(x => x.u === uid);
   if (!t) return;
@@ -498,15 +532,19 @@ export function txSheet(uid) {
   const all = (S.data && S.data.categories) || {};
   const fits = k => (t.a < 0 ? k === 'expense' || k === 'saving' : k === 'income') || k === 'internal';
   const cats = Object.keys(all).filter(c => c === t.c || fits(all[c].k)).sort((a, b) => a.localeCompare(b, 'he'));
+  // a transfer ("העברה דיגיטל", BIT) names no shop: what one of them is says nothing about the others
+  const transfer = /^העברות|^העברה בין/.test(t.c || '') || /העברה|הע\. |bit|ביט|paybox|פייבוקס/i.test(t.s || '');
   sheet(`<h3>${esc(t.s)}</h3>
     ${line('סכום', `<span class="${t.a > 0 ? 'pos' : ''}">${money(t.a, true)}</span>`)}
     ${line('תאריך', esc(dmy(t.d)), t.cd && t.cd !== t.d ? `חיוב ב-${dmy(t.cd)}` : '')}
     ${line('של מי', `<span class="tag ${who(t.o)}">${esc(t.o || '')}</span>`, t.card ? `כרטיס ${esc(t.card)}` : (t.src === 'leumi' ? 'חשבון הבנק' : ''))}
     ${t.i ? line('תשלומים', esc(String(t.i).replace('/', ' מתוך '))) : ''}
     ${t.p ? notice('עסקה בקליטה: הסכום הסופי יתעדכן כשהיא תיכנס לחיוב.') : ''}
+    ${t.w && WHY[t.w] ? notice(WHY[t.w]) : ''}
+    ${transfer && Math.abs(t.a) >= 2000 && !t.x ? notice('העברה גדולה לחשבון אחר שלכם, או לחיסכון או להשקעות? בחרו "העברה בין החשבונות שלנו" או "השקעות וחיסכון", והיא לא תיספר כהוצאה.') : ''}
     <label class="field" for="txCatSel">קטגוריה</label>
     <select id="txCatSel">${cats.map(c => `<option ${c === t.c ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>
-    <label class="check"><input type="checkbox" id="txLearn" checked> לסווג כך גם עסקאות אחרות מאותו בית עסק</label>
+    <label class="check"><input type="checkbox" id="txLearn"${transfer ? '' : ' checked'}> לסווג כך גם עסקאות אחרות מאותו בית עסק</label>
     <button class="btn primary" id="txSave">שמירה</button><button class="btn" id="txClose">ביטול</button>`);
   $('#txClose').onclick = closeSheet;
   $('#txSave').onclick = async () => {
