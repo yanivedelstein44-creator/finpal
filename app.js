@@ -437,8 +437,8 @@ function renderBanners() {
 
 // ------------------------------------------------------------------ install, updates
 const standalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); S.installEvent = e; renderBanners(); });
-window.addEventListener('appinstalled', () => { S.installEvent = null; renderBanners(); toast('FinPal נוספה למסך הבית'); });
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); S.installEvent = e; renderBanners(); F.installSlot(); });
+window.addEventListener('appinstalled', () => { S.installEvent = null; renderBanners(); F.installSlot(); toast('FinPal הותקנה. אפשר לפתוח אותה מהמסך הבית'); });
 async function install() {
   const ev = S.installEvent;
   if (!ev) {
@@ -450,6 +450,7 @@ async function install() {
   ev.prompt();
   try { await ev.userChoice; } catch (e) { /* ignore */ }
   renderBanners();
+  F.installSlot();
 }
 
 async function registerSW() {

@@ -14,6 +14,19 @@ const screen = html => { const el = $('#screen'); el.innerHTML = html; el.classL
 export const hideScreen = () => { $('#screen').classList.add('hidden'); $('#screen').innerHTML = ''; };
 const steps = (n, of) => `<div class="steps" aria-label="שלב ${n} מתוך ${of}">${Array.from({ length: of }, (_, i) => `<i class="${i < n ? 'on' : ''}"></i>`).join('')}</div>`;
 const logo = '<img class="logo" src="icons/icon-192.png" alt="">';
+const standalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+
+/** on the welcome screen: install the app from the link itself (the browser's own offer is shown here) */
+export function installSlot() {
+  const box = $('#wInstall');
+  if (!box) return;
+  if (standalone()) { box.innerHTML = ''; return; }
+  box.innerHTML = S.installEvent
+    ? `<button class="btn gold" data-w="install">${icon('download')} התקנת FinPal בטלפון</button>`
+    : '<p class="small install-hint">להתקנה כאפליקציה: בתפריט של כרום (שלוש הנקודות) בוחרים "התקנת אפליקציה" או "הוספה למסך הבית".</p>';
+  const b = $('[data-w="install"]', box);
+  if (b) b.onclick = () => A.act('install');
+}
 
 // ------------------------------------------------------------------ welcome
 export function welcome() {
@@ -25,6 +38,7 @@ export function welcome() {
     <div class="feature"><span class="ic">${icon('seed')}</span><div><b>איך לחסוך</b><span>טיפים לפי ההוצאות שלכם, מנויים שהתייקרו וכמה עוד אפשר להוציא החודש.</span></div></div>
   </div>
   <div class="actions">
+    <div id="wInstall"></div>
     <button class="btn primary" data-w="new">מתחילים</button>
     <button class="btn" data-w="joined">קיבלתי הזמנה מבן/בת הזוג</button>
     <button class="btn ghost" data-w="restore">יש לי קוד שחזור</button>
@@ -32,6 +46,7 @@ export function welcome() {
   $('[data-w="new"]', el).onclick = () => setupNames();
   $('[data-w="joined"]', el).onclick = () => pasteInvite();
   $('[data-w="restore"]', el).onclick = () => restoreScreen();
+  installSlot();
 }
 
 function pasteInvite() {

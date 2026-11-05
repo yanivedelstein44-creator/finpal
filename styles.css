@@ -278,3 +278,5 @@ details.more summary { cursor: pointer; color: var(--navy2); font-size: 14px; pa
 @media (min-width: 700px) { .tabbar { max-width: 680px; margin: 0 auto; border-radius: 18px 18px 0 0; border-inline: 1px solid var(--rule); } }
 ul.plain { margin: 6px 0 10px; padding: 0 20px 0 0; color: var(--ink2); font-size: 14px; }
 ul.plain li { margin: 3px 0; max-width: 100%; }
+#wInstall:empty { display: none; }
+.install-hint { text-align: center; margin: 0 0 4px; color: var(--ink2); }
