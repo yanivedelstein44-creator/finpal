@@ -7,7 +7,7 @@ import * as D from './lib/drive.js';
 import * as C from './lib/crypto.js';
 import { Family } from './lib/family.js';
 
-const APP_VERSION = '1.3.0';
+const APP_VERSION = '1.3.1';
 const DEFAULTS = Object.assign({ clientId: '', apiKey: '' }, globalThis.FINPAL_FAMILY || {});
 const UNLOCK_KEY = 'fp_unlocked';
 
@@ -413,6 +413,7 @@ const actions = {
       case 'import': F.importSheet(); break;
       case 'howto': F.howtoSheet(); break;
       case 'forecast': F.forecastSheet(); break;
+      case 'reminders': F.remindersSheet(); break;
       case 'invite': F.inviteSheet(); break;
       case 'connect': F.connectScreen(true); break;
       case 'sync': sync({ manual: true }); break;

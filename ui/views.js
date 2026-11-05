@@ -58,12 +58,18 @@ function heroCard(d) {
     </div>${meter}</section>`;
 }
 
+/** a salary or a card charge by name: "משכורת: עיריית ראשל"צ", "חיוב לאומי ויזה, כרטיס 8149" (not escaped) */
+export function payName(i) {
+  // "משכורת - בית חולים" under the title "משכורת": the payer only; the bank's "-י" at the end goes
+  const name = String(i.name || '').replace(/[-\s]י$/, '').replace(/^מקס איט.*$/, 'MAX').replace(/^משכורת\s*-\s*(?=\S)/, '');
+  if (i.kind === 'income') return `${i.category === 'קצבאות וביטוח לאומי' ? 'קצבה' : 'משכורת'}: ${name}`;
+  return `חיוב ${name}${i.card ? `, כרטיס ${i.card}` : ''}`;
+}
+
 /** the salaries and card charges that come every month: has each come this month, by the bank's file */
 export function expectedLine(i, asOf) {
   const income = i.kind === 'income';
-  // "משכורת - בית חולים" under the title "משכורת": the payer only
-  const name = String(i.name || '').replace(/[-\s]י$/, '').replace(/^מקס איט.*$/, 'MAX').replace(/^משכורת\s*-\s*(?=\S)/, '');
-  const title = income ? `${i.category === 'משכורת' ? 'משכורת' : 'קצבה'}: ${esc(name)}` : `חיוב ${esc(name)}${i.card ? `, כרטיס ${esc(i.card)}` : ''}`;
+  const title = esc(payName(i));
   const usual = `בדרך כלל ב-${i.day} לחודש, כ-${money(i.amount)}`;
   let ic, cls, sub;
   if (i.status === 'done') {
@@ -94,7 +100,8 @@ function expectedCard(d) {
   return `<section class="card"><h2>מה נכנס ומה עוד צפוי <small>לפי דף הבנק עד ${dm(e.as_of)}</small></h2>
     ${late ? notice(`${late === 1 ? 'משהו שמגיע כל חודש לא הופיע' : `${late} דברים שמגיעים כל חודש לא הופיעו`} בדף הבנק בזמן. כדאי לבדוק.`) : ''}
     ${items.map(i => expectedLine(i, e.as_of)).join('')}
-    ${old ? `<p class="small" style="margin:8px 0 0">דף הבנק שיובא מסתיים ב-${dm(e.as_of)}. כדי לראות מה נכנס וירד מאז, ייבאו דף חשבון עדכני.</p>` : ''}</section>`;
+    ${old ? `<p class="small" style="margin:8px 0 0">דף הבנק שיובא מסתיים ב-${dm(e.as_of)}. כדי לראות מה נכנס וירד מאז, ייבאו דף חשבון עדכני.</p>` : ''}
+    ${(e.reminders || []).length ? `<div class="line tap" data-act="reminders" style="margin-top:6px"><span class="lbl">${icon('calendar')} תזכורות לייבוא קבצים<span class="sub">${(e.reminders || []).map(r => `ב-${r.day}`).join(', ')} לחודש, אחרי שהמשכורות והחיובים נכנסים</span></span><span class="amt" style="color:var(--green)">הוספה ליומן</span></div>` : ''}</section>`;
 }
 
 function splitCard() {

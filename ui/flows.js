@@ -521,6 +521,37 @@ export function forecastSheet() {
   $('#fcDone').onclick = closeSheet;
 }
 
+// ------------------------------------------------------------------ reminders to import fresh files
+/** a monthly reminder on the day after salaries and charges usually come: added to Google Calendar, on each phone */
+export function remindersSheet() {
+  const e = (S.data && S.data.expected) || {};
+  const list = e.reminders || [];
+  if (!list.length) return;
+  const pad = n => String(n).padStart(2, '0');
+  const now = new Date();
+  const app = location.href.split(/[?#]/)[0].replace(/[^/]*$/, '');
+  const link = r => {
+    // the next one: this month if its day (at 20:00) is still ahead, or else next month
+    let y = now.getFullYear(), m = now.getMonth() + 1;
+    if (now.getDate() > r.day || (now.getDate() === r.day && now.getHours() >= 20)) { m += 1; if (m > 12) { m = 1; y += 1; } }
+    const d = `${y}${pad(m)}${pad(r.day)}`;
+    const what = r.what.map(w => `${V.payName(w)} (בדרך כלל ב-${w.day})`).join('\n');
+    const q = new URLSearchParams({
+      action: 'TEMPLATE', text: 'FinPal: לייבא דף חשבון ודפי אשראי', dates: `${d}T200000/${d}T201500`, ctz: 'Asia/Jerusalem',
+      details: `עד היום בדרך כלל כבר נכנסו או ירדו:\n${what}\n\nמורידים את הקבצים באפליקציה של הבנק או של MAX, לוחצים "שתף" ובוחרים FinPal.\n${app}`,
+      recur: `RRULE:FREQ=MONTHLY;BYMONTHDAY=${r.day}`,
+    });
+    return `https://calendar.google.com/calendar/render?${q}`;
+  };
+  sheet(`<h3>תזכורות לייבוא קבצים</h3>
+    <p class="small">האפליקציה זיהתה מתי המשכורות והחיובים שלכם בדרך כלל נכנסים. ביום שאחרי כדאי לייבא דף חשבון ודפי אשראי: ככה המספרים עדכניים, ורואים מיד אם משכורת לא נכנסה או חיוב לא ירד.</p>
+    ${list.map(r => `<div class="line"><span class="lbl"><b>ב-${r.day} בכל חודש, 20:00</b><span class="sub">אחרי: ${r.what.map(w => esc(V.payName(w))).join(' · ')}</span></span>
+      <a class="btn small" href="${esc(link(r))}" target="_blank" rel="noopener" data-cal="${r.day}">הוספה ליומן</a></div>`).join('')}
+    <p class="small">כל אחד מכם מוסיף את התזכורות ביומן Google שלו. אם המשכורות יתחילו להגיע בימים אחרים, הימים כאן יתעדכנו מעצמם.</p>
+    <button class="btn" id="rmDone">סגירה</button>`);
+  $('#rmDone').onclick = closeSheet;
+}
+
 // ------------------------------------------------------------------ a transaction
 const WHY = {
   settle: 'לא נספר: זה חיוב האשראי בבנק, והקניות שמאחוריו מפורטות בנפרד מדף האשראי. כך שום הוצאה לא נספרת פעמיים.',

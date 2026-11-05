@@ -1,7 +1,7 @@
 /* FinPal Family - service worker: the app opens without network, and files shared from the Android share
    sheet ("שיתוף" -> FinPal) are kept until the app takes them. The asset list and version are written by
    tools/build.py. */
-const VERSION = '1.3.0-9c2993cf4f';
+const VERSION = '1.3.1-9964c663af';
 const ASSETS = ["app.js", "config.js", "fonts/IBMPlexSansHebrew-Medium.ttf", "fonts/IBMPlexSansHebrew-Regular.ttf", "fonts/IBMPlexSansHebrew-SemiBold.ttf", "fonts/OFL-IBMPlexSansHebrew.txt", "guide.html", "guide.js", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-96.png", "icons/maskable-192.png", "icons/maskable-512.png", "index.html", "lib/crypto.js", "lib/drive.js", "lib/engine.js", "lib/family.js", "lib/parsers.js", "lib/pdf.js", "lib/replay.js", "lib/store.js", "lib/vendor/fflate.js", "manifest.webmanifest", "privacy.html", "styles.css", "ui/flows.js", "ui/kit.js", "ui/views.js", "version.json", "worker.js"];
 const CACHE = 'finpal-family-' + VERSION;
 // pdf.js (for statements saved as PDF) is big and changes rarely: kept in its own cache when first used,
