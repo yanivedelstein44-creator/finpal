@@ -7,7 +7,7 @@ import * as D from './lib/drive.js';
 import * as C from './lib/crypto.js';
 import { Family } from './lib/family.js';
 
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.1.1';
 const DEFAULTS = Object.assign({ clientId: '', apiKey: '' }, globalThis.FINPAL_FAMILY || {});
 const UNLOCK_KEY = 'fp_unlocked';
 
@@ -256,12 +256,13 @@ const isPdfBytes = buf => {
   return false;
 };
 
-/** a PDF protected with a password: ask for it. It only opens the file here, on the phone, and is not kept. */
-function askPassword(name, wrong) {
+/** a PDF protected with a password: ask for it. It only opens the file here, on the phone, and is not kept
+    (with several files at once, it is tried on the next protected files of the same import, and then forgotten). */
+function askPassword(name, wrong, more) {
   return new Promise(resolve => {
     sheet(`<h3>${wrong ? 'הסיסמה לא נכונה' : 'הקובץ מוגן בסיסמה'}</h3>
       <p class="ellip" dir="auto">${esc(name)}</p>
-      <p class="small">${wrong ? 'בדקו את הסיסמה ונסו שוב.' : 'לפעמים זו תעודת הזהות של בעל החשבון או הכרטיס.'} הסיסמה משמשת רק לפתיחת הקובץ בטלפון, ולא נשמרת.</p>
+      <p class="small">${wrong ? 'בדקו את הסיסמה ונסו שוב.' : 'לפעמים זו תעודת הזהות של בעל החשבון או הכרטיס.'} הסיסמה משמשת רק לפתיחת הקובץ בטלפון, ולא נשמרת.${more ? ' ננסה אותה גם בשאר הקבצים המוגנים שבחרתם עכשיו.' : ''}</p>
       <label class="field" for="pdfPw">הסיסמה של הקובץ</label><input id="pdfPw" type="password" autocomplete="off" spellcheck="false">
       <button class="btn primary" id="pwGo" style="margin-top:12px">פתיחת הקובץ</button><button class="btn" id="pwSkip">דילוג על הקובץ</button>`,
     { onClose: () => resolve(null) });
@@ -272,17 +273,22 @@ function askPassword(name, wrong) {
   });
 }
 
-/** read one file in the worker; a protected PDF asks for its password (up to five tries) */
-async function parseOne(name, buf, busyText) {
-  let password = '';
+/** read one file in the worker; a protected PDF asks for its password (up to five tries). Statements from the
+    same bank often share a password, so the one that opened the previous file is tried first, without asking.
+    Gives the result and the password that opened the file. */
+async function parseOne(name, buf, busyText, { tryFirst = '', more = false } = {}) {
+  let password = '', guessed = false, typed = false;
   for (let attempt = 0; ; attempt++) {
     const pdf = isPdfBytes(buf);
     const bytes = pdf ? buf.slice(0) : buf; // a PDF may have to be opened again, with its password
     const out = await work('parse', { name, bytes, password }, [bytes]);
-    if (!out.password || attempt >= 4) return out;
+    if (!out.password) return [out, password];
+    if (tryFirst && !guessed) { guessed = true; password = tryFirst; continue; }
+    if (attempt >= 5) return [out, ''];
     unbusy();
-    try { password = await askPassword(name, out.password === 'wrong'); } finally { busy(busyText); }
-    if (password === null) return out;
+    try { password = await askPassword(name, typed && out.password === 'wrong', more); } finally { busy(busyText); }
+    if (password === null) return [out, ''];
+    typed = true;
   }
 }
 
@@ -290,10 +296,12 @@ async function importNow(files) {
   const results = [];
   const known = new Set((S.imports || []).filter(i => i.status !== 'removed').map(i => i.sha));
   const added = [];
-  const busyText = files.length > 1 ? `קורא ${files.length} קבצים…` : 'קורא את הקובץ…';
-  await withBusy(busyText, async () => {
-    for (const f of files) {
+  let opened = ''; // the password of the last protected file: only in memory, only for this import
+  await withBusy(files.length > 1 ? `קורא ${files.length} קבצים…` : 'קורא את הקובץ…', async () => {
+    for (const [k, f] of files.entries()) {
       const name = f.name || 'file';
+      const busyText = files.length > 1 ? `קורא קובץ ${k + 1} מתוך ${files.length}…` : 'קורא את הקובץ…';
+      busy(busyText);
       try {
         // a File from the picker, or {name, bytes: ArrayBuffer} from the share sheet (File.bytes is a method in new browsers)
         const buf = typeof Blob !== 'undefined' && f instanceof Blob ? await f.arrayBuffer() : f.bytes;
@@ -301,7 +309,11 @@ async function importNow(files) {
         if (buf.byteLength > 50 * 1024 * 1024) { results.push({ name, error: 'הקובץ גדול מדי (מעל 50MB).' }); continue; }
         if (!buf.byteLength) { results.push({ name, error: 'הקובץ ריק.' }); continue; }
         let out;
-        try { out = await parseOne(name, buf, busyText); } catch (e) {
+        try {
+          let pw;
+          [out, pw] = await parseOne(name, buf, busyText, { tryFirst: opened, more: k < files.length - 1 });
+          if (pw) opened = pw;
+        } catch (e) {
           results.push({ name, error: /timeout/.test(String(e && e.message)) ? 'קריאת הקובץ נמשכה יותר מדי זמן. ייתכן שהוא פגום. הורידו אותו שוב.' : DAMAGED });
           continue;
         }
