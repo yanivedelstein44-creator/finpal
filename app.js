@@ -499,16 +499,26 @@ async function install() {
   F.installSlot();
 }
 
+const startedAt = Date.now();
 async function registerSW() {
   if (!('serviceWorker' in navigator)) return;
   try {
     const reg = await navigator.serviceWorker.register('sw.js', { scope: './' });
-    const watch = w => w && w.addEventListener('statechange', () => {
-      if (w.state === 'installed' && navigator.serviceWorker.controller) { S.swWaiting = w; renderBanners(); }
-    });
-    if (reg.waiting && navigator.serviceWorker.controller) S.swWaiting = reg.waiting;
+    const apply = w => { S.reloadOnController = true; w.postMessage('skip-waiting'); setTimeout(() => location.reload(), 3000); };
+    // a new version found as the app opens is put in place at once, before anything is typed or open;
+    // later in the session it waits for the "רענון" banner, so nothing on the screen is lost
+    const quiet = () => Date.now() - startedAt < 20000 && !busyWork && ['#sheet', '#busy'].every(q => $(q).classList.contains('hidden'))
+      && ($('#screen').classList.contains('hidden') || $('#screen').dataset.view === 'welcome');
+    const ready = w => {
+      if (!navigator.serviceWorker.controller) return; // the very first install: nothing to replace
+      if (quiet()) apply(w);
+      else { S.swWaiting = w; renderBanners(); }
+    };
+    const watch = w => w && w.addEventListener('statechange', () => { if (w.state === 'installed') ready(w); });
+    if (reg.waiting) ready(reg.waiting);
     reg.addEventListener('updatefound', () => watch(reg.installing));
     navigator.serviceWorker.addEventListener('controllerchange', () => { if (S.reloadOnController) location.reload(); });
+    reg.update().catch(() => {}); // look for a new version now, not only in an hour
     setInterval(() => reg.update().catch(() => {}), 60 * 60 * 1000);
   } catch (e) { /* the app still works, only without offline start */ }
 }

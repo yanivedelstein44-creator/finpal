@@ -10,7 +10,7 @@ import * as D from '../lib/drive.js';
 let A = {}; // app actions
 export function setActions(a) { A = a; }
 
-const screen = html => { const el = $('#screen'); el.innerHTML = html; el.classList.remove('hidden'); $('#app').classList.add('hidden'); window.scrollTo(0, 0); return el; };
+const screen = (html, view = '') => { const el = $('#screen'); el.innerHTML = html; el.dataset.view = view; el.classList.remove('hidden'); $('#app').classList.add('hidden'); window.scrollTo(0, 0); return el; };
 export const hideScreen = () => { $('#screen').classList.add('hidden'); $('#screen').innerHTML = ''; };
 const steps = (n, of) => `<div class="steps" aria-label="שלב ${n} מתוך ${of}">${Array.from({ length: of }, (_, i) => `<i class="${i < n ? 'on' : ''}"></i>`).join('')}</div>`;
 const logo = '<img class="logo" src="icons/icon-192.png" alt="">';
@@ -43,7 +43,7 @@ export function welcome() {
     <button class="btn primary" data-w="new">מתחילים</button>
     <button class="btn" data-w="joined">קיבלתי הזמנה מבן/בת הזוג</button>
     <button class="btn ghost" data-w="restore">יש לי קוד שחזור</button>
-  </div>`);
+  </div>`, 'welcome');
   $('[data-w="new"]', el).onclick = () => setupNames();
   $('[data-w="joined"]', el).onclick = () => pasteInvite();
   $('[data-w="restore"]', el).onclick = () => restoreScreen();
