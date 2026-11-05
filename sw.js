@@ -1,9 +1,12 @@
 /* FinPal Family - service worker: the app opens without network, and files shared from the Android share
    sheet ("שיתוף" -> FinPal) are kept until the app takes them. The asset list and version are written by
    tools/build.py. */
-const VERSION = '1.0.0-9ee563b203';
-const ASSETS = ["app.js", "config.js", "fonts/IBMPlexSansHebrew-Medium.ttf", "fonts/IBMPlexSansHebrew-Regular.ttf", "fonts/IBMPlexSansHebrew-SemiBold.ttf", "fonts/OFL-IBMPlexSansHebrew.txt", "guide.html", "guide.js", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-96.png", "icons/maskable-192.png", "icons/maskable-512.png", "index.html", "lib/crypto.js", "lib/drive.js", "lib/engine.js", "lib/family.js", "lib/parsers.js", "lib/replay.js", "lib/store.js", "lib/vendor/fflate.js", "manifest.webmanifest", "privacy.html", "styles.css", "ui/flows.js", "ui/kit.js", "ui/views.js", "version.json", "worker.js"];
+const VERSION = '1.1.0-1b74ff0f06';
+const ASSETS = ["app.js", "config.js", "fonts/IBMPlexSansHebrew-Medium.ttf", "fonts/IBMPlexSansHebrew-Regular.ttf", "fonts/IBMPlexSansHebrew-SemiBold.ttf", "fonts/OFL-IBMPlexSansHebrew.txt", "guide.html", "guide.js", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-96.png", "icons/maskable-192.png", "icons/maskable-512.png", "index.html", "lib/crypto.js", "lib/drive.js", "lib/engine.js", "lib/family.js", "lib/parsers.js", "lib/pdf.js", "lib/replay.js", "lib/store.js", "lib/vendor/fflate.js", "manifest.webmanifest", "privacy.html", "styles.css", "ui/flows.js", "ui/kit.js", "ui/views.js", "version.json", "worker.js"];
 const CACHE = 'finpal-family-' + VERSION;
+// pdf.js (for statements saved as PDF) is big and changes rarely: kept in its own cache when first used,
+// not downloaded again with every new version of the app
+const PDFJS = 'finpal-pdfjs-6.5.438';
 const BASE = self.registration.scope;
 const MAX_SHARE = 50 * 1024 * 1024;
 
@@ -13,7 +16,9 @@ self.addEventListener('install', event => {
 
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
-    for (const k of await caches.keys()) if (k.startsWith('finpal-family-') && k !== CACHE) await caches.delete(k);
+    for (const k of await caches.keys()) {
+      if ((k.startsWith('finpal-family-') && k !== CACHE) || (k.startsWith('finpal-pdfjs-') && k !== PDFJS)) await caches.delete(k);
+    }
     await self.clients.claim();
   })());
 });
@@ -75,6 +80,17 @@ self.addEventListener('fetch', event => {
         try { return await fetch(req); } catch (e) { /* offline: the app instead */ }
       }
       return (await caches.match(BASE + 'index.html', { ignoreSearch: true })) || fetch(req);
+    })());
+    return;
+  }
+  if (url.pathname.includes('/lib/vendor/pdfjs/')) {
+    event.respondWith((async () => {
+      const c = await caches.open(PDFJS);
+      const hit = await c.match(req, { ignoreSearch: true });
+      if (hit) return hit;
+      const res = await fetch(req);
+      if (res.ok) await c.put(req, res.clone());
+      return res;
     })());
     return;
   }

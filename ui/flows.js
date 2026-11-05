@@ -164,7 +164,7 @@ function forgotPin() {
 }
 
 // ------------------------------------------------------------------ setting up (the first partner)
-const SETUP = 5;
+const SETUP = 4;
 function setupNames() {
   const el = screen(`<div class="top">${steps(1, SETUP)}<h1>מי במשפחה?</h1>
     <p>השמות יופיעו באפליקציה, למשל ליד כרטיסי האשראי של כל אחד.</p>
@@ -177,27 +177,22 @@ function setupNames() {
     const me = $('#nMe').value.trim(), partner = $('#nPartner').value.trim();
     if (!me) { $('#nErr').textContent = 'מה השם שלך?'; return; }
     if (me === partner) { $('#nErr').textContent = 'צריך שני שמות שונים.'; return; }
-    setupPin({ me, partner });
+    createHousehold({ me, partner });
   };
 }
 
-function setupPin(names) {
-  const el = screen(`<div class="top">${steps(2, SETUP)}</div>`);
-  const host = document.createElement('div'); host.className = 'lock'; host.style.position = 'static'; host.style.minHeight = '70vh';
-  el.append(host);
-  newPin(host, 'קוד נעילה', async pin => {
-    await A.store.set('pin', await C.hashPin(pin));
-    await withBusy('יוצר את המפתח של המשפחה…', async () => {
-      const cfg = A.config();
-      const code = await S.fam.create({ myName: names.me, partnerName: names.partner, clientId: cfg.clientId, apiKey: cfg.apiKey });
-      A.markUnlocked();
-      setupRecovery(code);
-    });
-  }, () => setupNames());
+async function createHousehold(names) {
+  await withBusy('יוצר את המפתח של המשפחה…', async () => {
+    const cfg = A.config();
+    await A.store.del('pin'); // a lock code is set later, only if wanted (עוד ← אבטחה)
+    const code = await S.fam.create({ myName: names.me, partnerName: names.partner, clientId: cfg.clientId, apiKey: cfg.apiKey });
+    A.markUnlocked();
+    setupRecovery(code);
+  });
 }
 
 function setupRecovery(code) {
-  const el = screen(`<div class="top">${steps(3, SETUP)}<h1>קוד השחזור של המשפחה</h1>
+  const el = screen(`<div class="top">${steps(2, SETUP)}<h1>קוד השחזור של המשפחה</h1>
     <p>זה המפתח לכל הנתונים. אם שני הטלפונים יאבדו, רק איתו אפשר לפתוח את מה שנשמר בדרייב. שמרו אותו במקום בטוח: צילום מסך לתיקייה פרטית, או על דף בבית.</p>
     <div class="code-box long" id="rcCode">${esc(code)}</div>
     <button class="btn" id="rcCopy">${icon('copy2')} העתקה</button>
@@ -235,7 +230,7 @@ function setupDrive() {
   const cfg = S.fam.cfg;
   // the site may come with its Google connection already filled in (config.js): then nothing to paste
   const ready = D.validClientId(cfg.clientId) && D.validApiKey(cfg.apiKey);
-  const el = screen(`<div class="top">${steps(4, SETUP)}<h1>שמירה ב-Google Drive</h1>
+  const el = screen(`<div class="top">${steps(3, SETUP)}<h1>שמירה ב-Google Drive</h1>
     <p>כדי שהנתונים יופיעו גם בטלפון של ${esc(cfg.partnerName || 'בן/בת הזוג')}, האפליקציה שומרת קובץ מוצפן ב-Google Drive שלך. היא רואה רק את הקובץ הזה, לא שום דבר אחר בדרייב.</p>
     ${ready ? notice('בלחיצה על הכפתור ייפתח מסך של גוגל. בוחרים את החשבון שלך, ומסמנים את התיבה שמאשרת גישה לקבצים של FinPal.', 'green')
       : `${notice('צריך להקים פעם אחת חיבור בחשבון הגוגל שלך (כ-10 דקות). המדריך מסביר כל לחיצה. אחרי שתקבלו שני ערכים, מדביקים אותם כאן.')}
@@ -253,10 +248,10 @@ function setupDrive() {
   };
 }
 
-/** step 5: after the first save to Drive */
+/** the last step: after the first save to Drive */
 export async function setupInvite() {
   const partner = S.names.B || S.fam.cfg.partnerName || 'בן/בת הזוג';
-  const el = screen(`<div class="top">${steps(5, SETUP)}<h1>הזמנת ${esc(partner)}</h1>
+  const el = screen(`<div class="top">${steps(4, SETUP)}<h1>הזמנת ${esc(partner)}</h1>
     <p>שולחים ל${esc(partner)} קישור בוואטסאפ, ואומרים את הקוד בעל פה: בשיחה, או פנים מול פנים. בלי הקוד הקישור לא פותח כלום.</p>
     <div id="invBox"><div class="spinner" style="margin:20px auto"></div></div></div>
     <div class="actions"><button class="btn ghost" id="invDone">סיום</button></div>`);
@@ -329,31 +324,26 @@ export function joinScreen(payload) {
 }
 
 function joinName(inv, recovery) {
-  const el = screen(`<div class="top">${steps(1, 3)}<h1>נעים מאוד</h1>
+  const el = screen(`<div class="top">${steps(1, 2)}<h1>נעים מאוד</h1>
     <label class="field" for="jName">איך קוראים לך?</label><input id="jName" maxlength="30" value="${esc(inv.p || '')}">
     <div class="error" id="jnErr" role="alert"></div></div><div class="actions"><button class="btn primary" id="jnGo">המשך</button></div>`);
-  $('#jnGo', el).onclick = () => {
+  $('#jnGo', el).onclick = async () => {
     const name = $('#jName').value.trim();
     if (!name) { $('#jnErr').textContent = 'מה השם שלך?'; return; }
     if (name === inv.n) { $('#jnErr').textContent = `זה השם של ${inv.n}. מה השם שלך?`; return; }
-    const el2 = screen(`<div class="top">${steps(2, 3)}</div>`);
-    const host = document.createElement('div'); host.className = 'lock'; host.style.position = 'static'; host.style.minHeight = '70vh';
-    el2.append(host);
-    newPin(host, 'קוד נעילה', async pin => {
-      await A.store.set('pin', await C.hashPin(pin));
-      await withBusy('מתחבר למשפחה…', async () => {
-        await S.fam.joinWith(recovery, inv, name);
-        A.markUnlocked();
-        await A.afterJoin();
-      });
-      joinDrive();
+    await withBusy('מתחבר למשפחה…', async () => {
+      await A.store.del('pin');
+      await S.fam.joinWith(recovery, inv, name);
+      A.markUnlocked();
+      await A.afterJoin();
     });
+    joinDrive();
   };
 }
 
 export function joinDrive() {
   const partner = S.names.A || S.fam.cfg.partnerName || '';
-  const el = screen(`<div class="top">${steps(3, 3)}<h1>לייבא קבצים גם מהטלפון הזה?</h1>
+  const el = screen(`<div class="top">${steps(2, 2)}<h1>לייבא קבצים גם מהטלפון הזה?</h1>
     <p>כבר עכשיו רואים כאן את כל הקבצים שיובאו בטלפון של ${esc(partner)}. כדי לייבא קבצים גם מהטלפון הזה, מתחברים לגוגל פעם אחת, והם נשמרים בדרייב שלך.</p>
     ${notice('האפליקציה רואה רק את הקובץ שהיא עצמה יוצרת בדרייב שלך, לא שום דבר אחר.', 'green')}</div>
     <div class="actions"><button class="btn primary" id="jdGo">${icon('google')} התחברות לגוגל</button><button class="btn ghost" id="jdLater">לא עכשיו</button></div>`);
@@ -434,22 +424,17 @@ async function restoreAs(p, tok, role) {
     $('#raBack', el).onclick = () => restoreScreen(p);
     return;
   }
-  const el = screen('<div class="top"></div>');
-  const host = document.createElement('div'); host.className = 'lock'; host.style.position = 'static'; host.style.minHeight = '80vh';
-  el.append(host);
-  newPin(host, 'קוד נעילה חדש', async pin => {
-    await A.store.set('pin', await C.hashPin(pin));
-    await A.store.set('lockout', { fails: 0, until: 0 });
-    A.markUnlocked();
-    toast('הנתונים שוחזרו');
-    A.enterApp();
-  });
+  await A.store.del('pin');
+  await A.store.del('lockout');
+  A.markUnlocked();
+  toast('הנתונים שוחזרו');
+  A.enterApp();
 }
 
 // ------------------------------------------------------------------ importing
 export function importSheet() {
   sheet(`<h3>ייבוא קובץ</h3>
-    <p>קבצים מבנק לאומי ומכרטיסי MAX: Excel, CSV או XML. אפשר כמה קבצים בבת אחת, וקובץ שכבר יובא לא ייספר פעמיים.</p>
+    <p>קבצים מבנק לאומי ומכרטיסי MAX: Excel, CSV, XML או PDF. אפשר כמה קבצים בבת אחת, וקובץ שכבר יובא לא ייספר פעמיים.</p>
     <button class="btn primary" id="imPick">${icon('upload')} בחירת קבצים מהטלפון</button>
     <button class="btn" id="imHow">איך מורידים את הקובץ?</button>
     ${notice('טיפ: אחרי שמורידים קובץ, אפשר גם ללחוץ עליו לחיצה ארוכה בתיקיית ההורדות, לבחור "שיתוף" ואז את FinPal.')}`);
@@ -459,8 +444,9 @@ export function importSheet() {
 
 export function howtoSheet() {
   sheet(`<h3>איך מורידים קובץ תנועות</h3>
-    <p><b>בנק לאומי</b>: באתר או באפליקציה נכנסים לתנועות בחשבון העו״ש, בוחרים תקופה (למשל שלושה חודשים), ולוחצים על הייצוא לאקסל.</p>
-    <p><b>כרטיסי MAX</b>: באתר MAX נכנסים לפירוט העסקאות, בוחרים חודש, ולוחצים על הייצוא לאקסל. כדאי להוריד כל חודש בנפרד.</p>
+    <p><b>בנק לאומי</b>: באתר או באפליקציה נכנסים לתנועות בחשבון העו״ש, בוחרים תקופה (למשל שלושה חודשים), ולוחצים על הייצוא לאקסל או ל-PDF.</p>
+    <p><b>כרטיסי MAX</b>: באתר MAX נכנסים לפירוט העסקאות, בוחרים חודש, ולוחצים על הייצוא לאקסל. אפשר גם את דף הפירוט ב-PDF. כדאי להוריד כל חודש בנפרד.</p>
+    <p class="small">אקסל מדויק יותר מ-PDF. קובץ PDF שהוא תמונה סרוקה לא ייקרא.</p>
     <p><b>ואז</b>: בטלפון, הקובץ נשמר בתיקיית ההורדות. לוחצים כאן על "ייבוא" ובוחרים אותו, או משתפים אותו ישירות ל-FinPal.</p>
     ${notice('בפעם הראשונה כדאי לייבא כמה חודשים אחורה: ככה האפליקציה לומדת מה רגיל אצלכם, ויכולה להציע איפה לחסוך.')}
     <button class="btn" id="htClose">הבנתי</button>`);
@@ -561,7 +547,7 @@ export function recurringSheet(id) {
 export function privacySheet() {
   const partner = S.names[S.fam.other] || 'בן/בת הזוג';
   sheet(`<h3>איפה הנתונים שלנו נשמרים</h3>
-    <div class="result">${icon('phone', 'ok')}<div><b>בטלפון</b><span class="small">שמורים בטלפון בלבד, והאפליקציה ננעלת בקוד.</span></div></div>
+    <div class="result">${icon('phone', 'ok')}<div><b>בטלפון</b><span class="small">שמורים בטלפון בלבד. אפשר לנעול את האפליקציה בקוד (עוד ← אבטחה).</span></div></div>
     <div class="result">${icon('cloud', 'ok')}<div><b>ב-Google Drive</b><span class="small">לכל אחד מכם קובץ מוצפן בדרייב שלו. גוגל, ומי שיקבל את הקובץ, יראו רק רצף תווים חסר משמעות. המפתח נמצא רק בשני הטלפונים.</span></div></div>
     <div class="result">${icon('bank', 'ok')}<div><b>אין חיבור לבנק</b><span class="small">האפליקציה לא יודעת את הסיסמאות שלכם לבנק או לאשראי, ולא מתחברת אליהם. היא קוראת רק קבצים שהורדתם.</span></div></div>
     <div class="result">${icon('shield', 'ok')}<div><b>אין שרתים</b><span class="small">אין לנו שרת, ואף אחד מלבדך ומלבד ${esc(partner)} לא רואה את הנתונים.</span></div></div>
@@ -571,18 +557,53 @@ export function privacySheet() {
   $('#pvClose').onclick = closeSheet;
 }
 
-export function recoverySheet() {
+function showRecovery() {
+  const code = C.groupCode(S.fam.cfg.recovery);
+  sheet(`<h3>קוד השחזור של המשפחה</h3><p>רק איתו אפשר לפתוח את הנתונים שבדרייב אם שני הטלפונים יאבדו. לא שולחים אותו לאף אחד.</p>
+    <div class="code-box long">${esc(code)}</div><button class="btn" id="rsCopy">${icon('copy2')} העתקה</button><button class="btn ghost" id="rsClose">סגירה</button>`);
+  $('#rsCopy').onclick = () => copyText(code);
+  $('#rsClose').onclick = closeSheet;
+}
+
+export async function recoverySheet() {
+  if (!(await A.store.get('pin'))) { showRecovery(); return; }
   sheet('<div id="rcHost" class="lock" style="position:static;min-height:60vh"></div>');
   pinPad({
     host: $('#rcHost'), heading: 'קוד השחזור', sub: 'לאישור, הקלידו את קוד הנעילה', cancel: closeSheet,
     onPin: async (pin, say) => {
       const r = await verifyPin(pin);
       if (!r.ok) { say(r.msg); return false; }
-      const code = C.groupCode(S.fam.cfg.recovery);
-      sheet(`<h3>קוד השחזור של המשפחה</h3><p>רק איתו אפשר לפתוח את הנתונים שבדרייב אם שני הטלפונים יאבדו. לא שולחים אותו לאף אחד.</p>
-        <div class="code-box long">${esc(code)}</div><button class="btn" id="rsCopy">${icon('copy2')} העתקה</button><button class="btn ghost" id="rsClose">סגירה</button>`);
-      $('#rsCopy').onclick = () => copyText(code);
-      $('#rsClose').onclick = closeSheet;
+      showRecovery();
+      return true;
+    }
+  });
+}
+
+/** turning the lock code on: four digits, twice */
+export function pinOnSheet() {
+  sheet('<div id="poHost" class="lock" style="position:static;min-height:60vh"></div>');
+  newPin($('#poHost'), 'קוד נעילה', async pin => {
+    await A.store.set('pin', await C.hashPin(pin));
+    await A.store.set('lockout', { fails: 0, until: 0 });
+    closeSheet();
+    A.pinChanged(true);
+    toast('קוד הנעילה הופעל');
+  }, closeSheet);
+}
+
+/** turning it off asks for the code first */
+export function pinOffSheet() {
+  sheet('<div id="pfHost" class="lock" style="position:static;min-height:60vh"></div>');
+  pinPad({
+    host: $('#pfHost'), heading: 'כיבוי קוד הנעילה', sub: 'לאישור, הקלידו את קוד הנעילה', cancel: closeSheet,
+    onPin: async (pin, say) => {
+      const r = await verifyPin(pin);
+      if (!r.ok) { say(r.msg); return false; }
+      await A.store.del('pin');
+      await A.store.del('lockout');
+      closeSheet();
+      A.pinChanged(false);
+      toast('קוד הנעילה כובה');
       return true;
     }
   });

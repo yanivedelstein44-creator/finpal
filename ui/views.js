@@ -340,11 +340,18 @@ export function viewMore() {
     <button class="btn" data-act="sync" style="margin-top:8px">${icon('cloud')} ${signed ? 'סנכרון עכשיו' : 'התחברות לגוגל ושמירה'}</button>
     ${f.role === 'A' ? '<button class="btn ghost" data-act="google-setup">פרטי החיבור לגוגל</button>' : ''}</section>`;
   // security
-  html += `<section class="card"><h2>${icon('shield')} אבטחה</h2>
+  // the lock code is a choice: off unless this phone's owner turns it on
+  html += A.hasPin() ? `<section class="card"><h2>${icon('shield')} אבטחה</h2>
+    ${line('קוד נעילה', '<span class="tag a">פעיל</span>', 'נדרש בכל פתיחה של האפליקציה')}
     ${line('נעילה אוטומטית', `<select id="lockMin" aria-label="נעילה אוטומטית" style="width:auto;padding:6px 10px">${[1, 3, 10, 30].map(m => `<option value="${m}" ${(cfg.lockMin || 3) === m ? 'selected' : ''}>אחרי ${m} דק׳</option>`).join('')}</select>`, 'כשהאפליקציה ברקע')}
     <button class="btn" data-act="pin-change">${icon('lock')} שינוי קוד הנעילה</button>
+    <button class="btn" data-act="pin-off">כיבוי קוד הנעילה</button>
     <button class="btn" data-act="recovery">${icon('key')} קוד השחזור של המשפחה</button>
-    <button class="btn ghost" data-act="lock-now">נעילה עכשיו</button></section>`;
+    <button class="btn ghost" data-act="lock-now">נעילה עכשיו</button></section>`
+    : `<section class="card"><h2>${icon('shield')} אבטחה</h2>
+    ${line('קוד נעילה', '<span class="tag">כבוי</span>', 'אפשר לבקש קוד בכל פתיחה של האפליקציה')}
+    <button class="btn" data-act="pin-on">${icon('lock')} הפעלת קוד נעילה</button>
+    <button class="btn" data-act="recovery">${icon('key')} קוד השחזור של המשפחה</button></section>`;
   // app
   html += `<section class="card"><h2>${icon('phone')} האפליקציה</h2>
     ${A.inApp() ? '' : `<a class="btn primary" href="FinPal.apk" download="FinPal.apk">${icon('download')} הורדת האפליקציה לאנדרואיד</a>`}

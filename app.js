@@ -7,7 +7,7 @@ import * as D from './lib/drive.js';
 import * as C from './lib/crypto.js';
 import { Family } from './lib/family.js';
 
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
 const DEFAULTS = Object.assign({ clientId: '', apiKey: '' }, globalThis.FINPAL_FAMILY || {});
 const UNLOCK_KEY = 'fp_unlocked';
 
@@ -63,7 +63,7 @@ async function work(cmd, payload, transfer) {
     const [P, E, R] = await Promise.all([import('./lib/parsers.js'), import('./lib/engine.js'), import('./lib/replay.js')]);
     local = { P, E, R };
   }
-  if (cmd === 'parse') return local.P.parseFile(payload.name, new Uint8Array(payload.bytes));
+  if (cmd === 'parse') return local.P.parseFile(payload.name, new Uint8Array(payload.bytes), { password: payload.password || '' });
   if (cmd === 'replay') return local.R.replay(local.E, payload.events, payload.today, payload.names);
   throw new Error('unknown ' + cmd);
 }
@@ -250,11 +250,48 @@ async function importFiles(files) {
 }
 
 const DAMAGED = 'הקובץ פגום או שההורדה לא הושלמה. הורידו אותו שוב מהאתר.';
+const isPdfBytes = buf => {
+  const u = new Uint8Array(buf, 0, Math.min(1024, buf.byteLength));
+  for (let i = 0; i + 4 < u.length; i++) if (u[i] === 0x25 && u[i + 1] === 0x50 && u[i + 2] === 0x44 && u[i + 3] === 0x46 && u[i + 4] === 0x2d) return true;
+  return false;
+};
+
+/** a PDF protected with a password: ask for it. It only opens the file here, on the phone, and is not kept. */
+function askPassword(name, wrong) {
+  return new Promise(resolve => {
+    sheet(`<h3>${wrong ? 'הסיסמה לא נכונה' : 'הקובץ מוגן בסיסמה'}</h3>
+      <p class="ellip" dir="auto">${esc(name)}</p>
+      <p class="small">${wrong ? 'בדקו את הסיסמה ונסו שוב.' : 'לפעמים זו תעודת הזהות של בעל החשבון או הכרטיס.'} הסיסמה משמשת רק לפתיחת הקובץ בטלפון, ולא נשמרת.</p>
+      <label class="field" for="pdfPw">הסיסמה של הקובץ</label><input id="pdfPw" type="password" autocomplete="off" spellcheck="false">
+      <button class="btn primary" id="pwGo" style="margin-top:12px">פתיחת הקובץ</button><button class="btn" id="pwSkip">דילוג על הקובץ</button>`,
+    { onClose: () => resolve(null) });
+    const done = v => { sheet.onClose = null; closeSheet(); resolve(v); };
+    $('#pwGo').onclick = () => done($('#pdfPw').value || null);
+    $('#pdfPw').onkeydown = e => { if (e.key === 'Enter') done($('#pdfPw').value || null); };
+    $('#pwSkip').onclick = () => done(null);
+  });
+}
+
+/** read one file in the worker; a protected PDF asks for its password (up to five tries) */
+async function parseOne(name, buf, busyText) {
+  let password = '';
+  for (let attempt = 0; ; attempt++) {
+    const pdf = isPdfBytes(buf);
+    const bytes = pdf ? buf.slice(0) : buf; // a PDF may have to be opened again, with its password
+    const out = await work('parse', { name, bytes, password }, [bytes]);
+    if (!out.password || attempt >= 4) return out;
+    unbusy();
+    try { password = await askPassword(name, out.password === 'wrong'); } finally { busy(busyText); }
+    if (password === null) return out;
+  }
+}
+
 async function importNow(files) {
   const results = [];
   const known = new Set((S.imports || []).filter(i => i.status !== 'removed').map(i => i.sha));
   const added = [];
-  await withBusy(files.length > 1 ? `קורא ${files.length} קבצים…` : 'קורא את הקובץ…', async () => {
+  const busyText = files.length > 1 ? `קורא ${files.length} קבצים…` : 'קורא את הקובץ…';
+  await withBusy(busyText, async () => {
     for (const f of files) {
       const name = f.name || 'file';
       try {
@@ -264,14 +301,18 @@ async function importNow(files) {
         if (buf.byteLength > 50 * 1024 * 1024) { results.push({ name, error: 'הקובץ גדול מדי (מעל 50MB).' }); continue; }
         if (!buf.byteLength) { results.push({ name, error: 'הקובץ ריק.' }); continue; }
         let out;
-        try { out = await work('parse', { name, bytes: buf }, [buf]); } catch (e) {
+        try { out = await parseOne(name, buf, busyText); } catch (e) {
           results.push({ name, error: /timeout/.test(String(e && e.message)) ? 'קריאת הקובץ נמשכה יותר מדי זמן. ייתכן שהוא פגום. הורידו אותו שוב.' : DAMAGED });
           continue;
         }
+        if (out.password) { results.push({ name, error: out.password === 'wrong' ? 'הסיסמה של הקובץ לא נכונה, והוא לא נפתח.' : 'הקובץ מוגן בסיסמה, והוא לא נפתח.' }); continue; }
         if (out.error || !out.kind) {
           if (out.error) console.warn('parse', name, out.error);
           // a reading failure is reported in technical words: the person only needs to know what to do
-          results.push({ name, error: !out.error ? 'זה לא נראה כמו קובץ תנועות של לאומי או של MAX.' : /^שגיאה/.test(out.error) ? DAMAGED : out.error });
+          const firstPdf = /dynamically imported module|Failed to fetch|Importing a module/i.test(out.error || '');
+          results.push({ name, error: !out.error ? 'זה לא נראה כמו קובץ תנועות של לאומי או של MAX.'
+            : firstPdf ? 'כדי לקרוא קובץ PDF בפעם הראשונה צריך חיבור לאינטרנט. נסו שוב כשיש חיבור.'
+              : /^שגיאה/.test(out.error) ? DAMAGED : out.error });
           continue;
         }
         if (!(out.txns || []).length) { results.push({ name, error: 'אין בקובץ תנועות.' }); continue; }
@@ -330,6 +371,8 @@ const actions = {
   refresh: () => refreshScreen(),
   signedIn: () => !!D.token(),
   inApp: () => F.inApp(),
+  hasPin: () => !!S.hasPin,
+  pinChanged: on => { S.hasPin = !!on; actions.markUnlocked(); refreshScreen(); },
   version: () => APP_VERSION,
   enterApp: () => enterApp(),
   afterJoin: async () => { try { await fam.pull(); } catch (e) { S.syncError = e; } await safeRebuild(); },
@@ -362,8 +405,10 @@ const actions = {
       case 'sync': sync({ manual: true }); break;
       case 'google-setup': F.googleSetupSheet(); break;
       case 'pin-change': F.changePinSheet(); break;
+      case 'pin-on': F.pinOnSheet(); break;
+      case 'pin-off': F.pinOffSheet(); break;
       case 'recovery': F.recoverySheet(); break;
-      case 'lock-now': sessionStorage.removeItem(UNLOCK_KEY); lock(); break;
+      case 'lock-now': if (S.hasPin) { sessionStorage.removeItem(UNLOCK_KEY); lock(); } break;
       case 'privacy': F.privacySheet(); break;
       case 'wipe': actions.wipe(); break;
       case 'install': install(); break;
@@ -482,7 +527,7 @@ let busyWork = 0;
 async function reloadFromPhone() {
   if (!fam.ready || syncing || busyWork) return;
   const before = fam.events().length, cfgBefore = JSON.stringify(fam.cfg), household = fam.cfg.recovery;
-  try { await fam.load(); } catch (e) { return; }
+  try { await fam.load(); S.hasPin = !!(await store.get('pin')); } catch (e) { return; }
   if (!fam.ready || fam.cfg.recovery !== household) { location.replace(D.appBase()); return; }
   if (fam.events().length !== before || JSON.stringify(fam.cfg) !== cfgBefore) {
     S.names = fam.names();
@@ -507,7 +552,7 @@ document.addEventListener('visibilitychange', async () => {
   // deleted from the phone in another window meanwhile: start over (the lock code is gone with it)
   try { if (!(await store.get('cfg'))) { location.replace(D.appBase()); return; } } catch (e) { /* storage busy: carry on */ }
   const mins = (fam.cfg && fam.cfg.lockMin) || 3;
-  if (hiddenAt && Date.now() - hiddenAt > mins * 60 * 1000 && $('#lock').classList.contains('hidden')) {
+  if (S.hasPin && hiddenAt && Date.now() - hiddenAt > mins * 60 * 1000 && $('#lock').classList.contains('hidden')) {
     sessionStorage.removeItem(UNLOCK_KEY);
     lock();
     return;
@@ -603,6 +648,8 @@ window.addEventListener('scroll', () => $('#topbar').classList.toggle('scrolled'
     await enterApp();
     if (typeof next === 'function') next();
   };
+  try { S.hasPin = !!(await store.get('pin')); } catch (e) { S.hasPin = false; }
+  if (!S.hasPin) { actions.markUnlocked(); await go(); return; }
   let last = 0;
   try { last = +(sessionStorage.getItem(UNLOCK_KEY) || 0); } catch (e) { last = 0; }
   const mins = (fam.cfg && fam.cfg.lockMin) || 3;

@@ -7,7 +7,7 @@ self.onmessage = async ({ data }) => {
   const { id, cmd } = data || {};
   try {
     let out;
-    if (cmd === 'parse') out = await parseFile(data.name, new Uint8Array(data.bytes));
+    if (cmd === 'parse') out = await parseFile(data.name, new Uint8Array(data.bytes), { password: data.password || '' });
     else if (cmd === 'replay') out = await replay(E, data.events, data.today, data.names);
     else if (cmd === 'categories') out = typeof E.categoryList === 'function' ? E.categoryList() : [];
     else throw new Error('unknown command ' + cmd);

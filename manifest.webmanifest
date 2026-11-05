@@ -64,6 +64,8 @@
             "text/html",
             ".html",
             ".htm",
+            "application/pdf",
+            ".pdf",
             "application/octet-stream"
           ]
         }
