@@ -521,6 +521,54 @@ export function forecastSheet() {
   $('#fcDone').onclick = closeSheet;
 }
 
+// ------------------------------------------------------------------ a monthly budget for a category
+/** spending of a category by billing month, from the transactions on the phone (about four months) */
+function monthsOf(cat) {
+  const by = {};
+  for (const t of (S.data && S.data.transactions) || []) {
+    if (t.x || t.c !== cat) continue;
+    const m = (t.src === 'max' ? t.cd || t.d : t.d).slice(0, 7);
+    by[m] = (by[m] || 0) - t.a;
+  }
+  return by;
+}
+export function budgetSheet(cat) {
+  const all = (S.data && S.data.categories) || {};
+  const cats = Object.keys(all).filter(c => all[c].k === 'expense' && c !== 'כרטיס אשראי - ללא פירוט').sort((a, b) => a.localeCompare(b, 'he'));
+  const now = new Date();
+  const m = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const usual = c => {
+    const by = monthsOf(c);
+    const prev = Object.keys(by).filter(k => k < m).sort().slice(-3);
+    return prev.length ? prev.reduce((a, k) => a + Math.max(0, by[k]), 0) / prev.length : 0;
+  };
+  const cur = cat ? (S.budgets || {})[cat] || 0 : 0;
+  const pick = cat || cats[0] || '';
+  const suggest = c => Math.max(100, Math.round(usual(c) / 50) * 50);
+  sheet(`<h3>${cat ? `תקציב ל${esc(cat)}` : 'תקציב חודשי לקטגוריה'}</h3>
+    ${cat ? '' : `<label class="field" for="bgCat">קטגוריה</label><select id="bgCat">${cats.map(c => `<option ${c === pick ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>`}
+    <label class="field" for="bgAmt">כמה מותר להוציא בחודש</label>
+    <input id="bgAmt" type="number" inputmode="numeric" min="0" step="50" value="${cur || suggest(pick)}">
+    <p class="small" id="bgHint" style="margin:6px 0 0"></p>
+    <button class="btn primary" id="bgSave" style="margin-top:12px">שמירה</button>
+    ${cat ? '<button class="btn" id="bgDel">הסרת התקציב</button>' : ''}<button class="btn ghost" id="bgClose">ביטול</button>`);
+  const hint = () => {
+    const c = cat || $('#bgCat').value, u = usual(c);
+    $('#bgHint').textContent = u ? `בשלושת החודשים האחרונים יצאו על זה בממוצע ${Math.round(u).toLocaleString('he-IL')} ₪ בחודש.` : 'עוד אין מספיק נתונים על הקטגוריה הזו.';
+  };
+  hint();
+  if (!cat) $('#bgCat').onchange = () => { $('#bgAmt').value = suggest($('#bgCat').value); hint(); };
+  $('#bgClose').onclick = closeSheet;
+  $('#bgSave').onclick = async () => {
+    const c = cat || $('#bgCat').value, v = Math.round(+$('#bgAmt').value || 0);
+    if (!(v > 0)) { toast('כמה מותר להוציא בחודש?'); return; }
+    closeSheet();
+    await A.setBudget(c, v);
+    toast('התקציב נשמר בשני הטלפונים');
+  };
+  if (cat) $('#bgDel').onclick = async () => { closeSheet(); await A.setBudget(cat, 0); toast('התקציב הוסר'); };
+}
+
 // ------------------------------------------------------------------ reminders to import fresh files
 /** a monthly reminder on the day after salaries and charges usually come: added to Google Calendar, on each phone */
 export function remindersSheet() {
@@ -580,14 +628,18 @@ export function txSheet(uid) {
     <label class="field" for="txCatSel">קטגוריה</label>
     <select id="txCatSel">${cats.map(c => `<option ${c === t.c ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>
     <label class="check"><input type="checkbox" id="txLearn"${transfer ? '' : ' checked'}> לסווג כך גם עסקאות אחרות מאותו בית עסק</label>
+    <label class="field" for="txNote">הערה${transfer ? ' (למי ועל מה)' : ''}</label>
+    <input id="txNote" maxlength="120" value="${esc((S.notes || {})[uid] || '')}" placeholder="${transfer ? 'למשל: שכר דירה, מתנה לחתונה' : 'למשל: מתנה ליום הולדת'}">
     <button class="btn primary" id="txSave">שמירה</button><button class="btn" id="txClose">ביטול</button>`);
   $('#txClose').onclick = closeSheet;
   $('#txSave').onclick = async () => {
     const cat = $('#txCatSel').value, learn = $('#txLearn').checked;
-    if (cat === t.c && !learn) { closeSheet(); return; }
+    const note = $('#txNote').value.trim(), noteChanged = note !== ((S.notes || {})[uid] || '');
+    if (cat === t.c && !learn && !noteChanged) { closeSheet(); return; }
     closeSheet();
-    await A.setCategory([uid], cat, learn);
-    toast(learn ? `נשמר. גם עסקאות אחרות מ"${t.s}" יסווגו כ"${cat}"` : 'נשמר');
+    if (noteChanged) await A.setNote(uid, note);
+    if (cat !== t.c || learn) await A.setCategory([uid], cat, learn);
+    toast(learn && cat !== t.c ? `נשמר. גם עסקאות אחרות מ"${t.s}" יסווגו כ"${cat}"` : 'נשמר');
   };
 }
 

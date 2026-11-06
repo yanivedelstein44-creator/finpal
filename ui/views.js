@@ -40,6 +40,13 @@ function sentence(f) {
   return s;
 }
 
+/** "‹ אוקטובר": the month before, opened in the months tab */
+function prevMonthLink(d) {
+  const p = addMonths(d.month, -1);
+  if (!(d.months || []).some(m => m.m === p)) return '';
+  return ` <button class="hero-prev" data-open-month="${esc(p)}" aria-label="פירוט ${esc(monthName(p))}">${esc(monthName(p))} ‹</button>`;
+}
+
 function heroCard(d) {
   const f = d.forecast || {}, b = d.budget, n = f.net_forecast;
   const meter = b && b.pct != null ? (() => {
@@ -48,7 +55,7 @@ function heroCard(d) {
       <div class="meter-note">יצאו ${pct(b.pct)} מההכנסות שצפויות להיכנס החודש</div>`;
   })() : '';
   return `<section class="hero${n == null ? '' : ' tap'}" aria-label="החודש במבט אחד"${n == null ? '' : ' data-act="forecast" role="button" tabindex="0"'}>
-    <div class="k">${esc(monthLabel(d.month))} · צפי לסוף החודש</div>
+    <div class="k">${esc(monthLabel(d.month))} · צפי לסוף החודש${prevMonthLink(d)}</div>
     <div class="big ${n < 0 ? 'neg' : ''}">${n == null ? '—' : money(n, true)}</div>
     <div class="say">${n == null ? '' : `${n >= 0 ? 'זה מה שצפוי להישאר בסוף החודש' : 'זה מה שצפוי לחסור בסוף החודש'}, לפי מה שכבר עבר החודש והממוצע שלכם. <u>איך חישבנו?</u>`}</div>
     <div class="stats">
@@ -86,6 +93,15 @@ export function expectedLine(i, asOf) {
     sub = usual;
   }
   return `<div class="result">${icon(ic, cls)}<div><b class="ellip">${title}</b><span class="small">${sub}</span></div></div>`;
+}
+
+/** a budget at 80% or more of its sum this month, on the home screen */
+function budgetAlerts() {
+  const b = S.budgets || {}, m = curMonth();
+  const near = Object.keys(b).map(c => [c, Math.max(0, spentIn(c, m)), b[c]]).filter(([, s, cap]) => cap && s >= 0.8 * cap);
+  if (!near.length) return '';
+  return `<section class="card tap" data-go-tab="save"><h2>${icon('target')} תקציב <small>${near.some(([, s, cap]) => s >= cap) ? 'יש חריגה' : 'מתקרבים לגבול'}</small></h2>
+    ${near.map(([c, s, cap]) => line(esc(c), `<span class="${s >= cap ? 'neg' : ''}">${money(s)}</span>`, `${fmt(s / cap * 100)}% מהתקציב`, `מתוך ${money(cap)}`)).join('')}</section>`;
 }
 
 function expectedCard(d) {
@@ -161,7 +177,7 @@ function alertsCard() {
 export function viewHome() {
   if (!hasData()) return emptyHome();
   const d = S.data;
-  return `${heroCard(d)}${expectedCard(d)}${tipPreview(d)}${splitCard()}${flowCard(d)}${catsCard(d)}${alertsCard()}`;
+  return `${heroCard(d)}${budgetAlerts()}${expectedCard(d)}${tipPreview(d)}${splitCard()}${flowCard(d)}${catsCard(d)}${alertsCard()}`;
 }
 
 // ------------------------------------------------------------------ savings
@@ -227,10 +243,114 @@ function annualCard(d) {
     ${(pl.next || []).slice(0, 3).map(i => line(`<span class="ellip">${esc(i.n)}</span>`, money(i.a), esc(i.l))).join('')}</section>`;
 }
 
+// ------------------------------------------------------------------ habits: where the money goes
+const UND = 'כרטיס אשראי - ללא פירוט';
+/** spending of a category in a month (as the months are counted: a card purchase in its billing month) */
+function spentIn(cat, month) {
+  return ((S.data && S.data.transactions) || []).filter(t => !t.x && t.c === cat && (t.src === 'max' ? t.cd || t.d : t.d).slice(0, 7) === month)
+    .reduce((a, t) => a - t.a, 0);
+}
+const curMonth = () => localDate().slice(0, 7);
+const addMonths = (m, k) => { const [y, mo] = m.split('-').map(Number); const t = y * 12 + mo - 1 + k; return `${Math.floor(t / 12)}-${String(t % 12 + 1).padStart(2, '0')}`; };
+
+function installmentsCard(d) {
+  const i = d.habits && d.habits.installments;
+  if (!i) return '';
+  const pts = i.timeline.slice(0, 5);
+  const mx = Math.max(1, ...pts.map(p => p.total));
+  // the first month the load falls by a fifth or more
+  let drop = null;
+  for (let k = 1; k < i.timeline.length && !drop; k++) if (i.timeline[k].total <= i.timeline[k - 1].total * 0.8) drop = [i.timeline[k - 1], i.timeline[k]];
+  return `<section class="card tap" data-go="installments"><h2>${icon('card')} תשלומים פעילים <small>לפי דפי האשראי של ${esc(monthName(i.month))}</small></h2>
+    ${line(i.count === 1 ? 'עסקה אחת בתשלומים' : `${fmt(i.count)} עסקאות בתשלומים`, money(i.monthly), 'כל חודש, מקניות קודמות', `נשאר לשלם ${money(i.remaining)}`)}
+    <div class="minibars">${pts.map(p => `<div><i style="height:${Math.max(4, p.total / mx * 56)}px"></i><b>${fmt(p.total)}</b><span>${esc(shortMonth(p.m))}</span></div>`).join('')}</div>
+    ${drop ? `<p class="small" style="margin:8px 0 0">ב${esc(monthName(drop[1].m))} ההחזר יורד ל-${money(drop[1].total)}, כלומר ${money(drop[0].total - drop[1].total)} פחות בחודש. התשלום האחרון: ${esc(monthLabel(i.last))}.</p>` : ''}
+    <p class="small" style="margin:6px 0 0">לפני קנייה חדשה בתשלומים, כדאי לבדוק כמה כבר יוצא כל חודש על תשלומים קודמים. הקישו לרשימה המלאה.</p></section>`;
+}
+
+export function viewInstallments() {
+  const i = S.data && S.data.habits && S.data.habits.installments;
+  if (!i) return `${title('תשלומים פעילים', '', true)}<p class="empty">אין עסקאות בתשלומים בדפי האשראי שיובאו.</p>`;
+  const rows = i.items.map(x => line(`<span class="ellip">${esc(x.name)}</span>`, money(x.pay),
+    esc(`כרטיס ${x.card} · תשלום ${x.no} מתוך ${x.total}${x.left ? ` · נגמר ב${monthName(x.ends)} ${x.ends.slice(0, 4)}` : ' · האחרון'}`),
+    x.left ? `נשאר ${money(x.remaining)}` : 'האחרון')).join('');
+  return `${title('תשלומים פעילים', `${fmt(i.count)} עסקאות, ${fmt(i.monthly)} ₪ בחודש`, true)}
+    <section class="card"><h2>כמה ייצא על תשלומים בחודשים הקרובים</h2>${barRows(i.timeline.slice(0, 9).map(p => ({ label: monthLabel(p.m), value: p.total, color: 'var(--navy2)' })))}</section>
+    <section class="card"><h2>כל העסקאות <small>הגדולות למעלה</small></h2><div class="tx" style="border:0;padding:0">${rows}</div></section>`;
+}
+
+function smallCard(d) {
+  const s = d.habits && d.habits.small;
+  if (!s) return '';
+  return `<section class="card"><h2>${icon('coffee')} קניות קטנות שמצטברות <small>${esc(monthName(s.month))}</small></h2>
+    <p style="margin:0 0 6px">${fmt(s.count)} קניות של פחות מ-50 ₪, ביחד ${money(s.total)}. בשנה זה בערך <b>${money(s.yearly)}</b>.</p>
+    ${s.top.map(g => line(`<span class="ellip">${esc(g.name)}</span>`, money(g.total), `${fmt(g.count)} פעמים`)).join('')}
+    <p class="small" style="margin:6px 0 0">קפה, חטיף ומאפה כמעט כל יום הם החיסכון הכי קל: חצי מזה הוא ${money(s.yearly / 2)} בשנה.</p></section>`;
+}
+
+function transfersCard(d) {
+  const t = d.habits && d.habits.transfers;
+  if (!t || !t.months.some(m => m.total)) return '';
+  const notes = S.notes || {};
+  const shown = t.months.filter(m => m.total || m.m === curMonth());
+  const items = t.items.slice(0, 8);
+  return `<section class="card"><h2>${icon('share')} כסף שעבר לאנשים <small>BIT, Paybox והעברות</small></h2>
+    ${barRows(shown.map(m => ({ label: monthName(m.m), value: m.total, color: 'var(--gold)', text: `${money(m.total)} <span class="muted small">(${fmt(m.count)})</span>` })))}
+    ${items.length ? `<p class="small" style="margin:10px 0 2px;color:var(--ink)">על מה? <span class="muted">הקישו על העברה כדי לכתוב למי ועל מה</span></p>
+    <div class="tx" style="border:0;padding:0">${items.map(x => line(`<span class="ellip">${esc(notes[x.u] || x.s)}</span>`, money(x.a, true),
+      esc([dm(x.d), notes[x.u] ? x.s : '', x.card ? `כרטיס ${x.card}` : 'מהבנק'].filter(Boolean).join(' · ')), '', x.u ? `data-tx="${esc(x.u)}"` : '')).join('')}</div>` : ''}</section>`;
+}
+
+function debtCard(d) {
+  const b = d.habits && d.habits.debt;
+  if (!b) return '';
+  return `<section class="card tap" data-go="loans"><h2>${icon('bank')} הלוואות, משכנתא ופריסות <small>${esc(monthName(b.month))}</small></h2>
+    ${line('החזר חודשי', money(b.total), 'משכנתא, הלוואות ופריסת חיובים')}
+    ${b.mortgage ? line('<span class="muted">משכנתא</span>', money(b.mortgage)) : ''}${b.loan ? line('<span class="muted">הלוואות</span>', money(b.loan)) : ''}
+    ${b.spread ? line('<span class="muted">פריסת חיוב אשראי</span>', money(b.spread)) : ''}
+    ${b.spread ? notice('חיוב אשראי שנפרס לתשלומים עולה ריבית. אם אפשר, כדאי לסגור את הפריסה ולא לפרוס שוב.') : ''}
+    ${b.taken.length ? line('הלוואות שנלקחו בשנה האחרונה', money(b.taken_total), `${fmt(b.taken.length)} פעמים · הקישו לפרטים`) : ''}
+    ${b.interest3 > 0.5 ? line('ריבית שמופיעה בדפים', money(b.interest3), '3 החודשים האחרונים') : ''}</section>`;
+}
+
+export function viewLoans() {
+  const b = S.data && S.data.habits && S.data.habits.debt;
+  if (!b) return `${title('הלוואות ומשכנתא', '', true)}<p class="empty">לא נמצאו הלוואות או משכנתא בדף הבנק.</p>`;
+  const part = (r, m) => `<section class="card"><h2>${esc(monthLabel(m))}</h2>
+    ${line('משכנתא', money(r.mortgage))}${line('הלוואות', money(r.loan))}${line('פריסת חיוב אשראי', money(r.spread))}
+    ${line('<b>סה״כ</b>', `<b>${money(r.total)}</b>`)}
+    ${r.big.length ? `<p class="small" style="margin:6px 0 0">פרעונות גדולים (כנראה סגירה מוקדמת של הלוואה): ${r.big.map(x => `${money(x.a)} ב-${dm(x.d)}`).join(', ')}</p>` : ''}</section>`;
+  return `${title('הלוואות ומשכנתא', 'לפי דף הבנק', true)}
+    ${part(b, b.month)}${b.now && b.now.total ? part(b.now, curMonth()) : ''}
+    <section class="card"><h2>הלוואות שנלקחו בשנה האחרונה <small>${money(b.taken_total)}</small></h2>
+      ${b.taken.length ? b.taken.map(t => line(esc(t.s.replace(/[-\s]י$/, '')), money(t.a), esc(dmy(t.d)))).join('') : '<p class="small" style="margin:0">לא נלקחו הלוואות בשנה האחרונה.</p>'}
+      <p class="small" style="margin:8px 0 0">הלוואה חדשה שסוגרת הלוואה קודמת עלולה לעלות יותר ריבית לאורך זמן. לפני שלוקחים, כדאי להשוות את הריבית ואת סך ההחזר.</p></section>`;
+}
+
+function budgetsCard() {
+  const b = S.budgets || {};
+  const cats = Object.keys(b);
+  const m = curMonth();
+  if (!cats.length) {
+    return `<section class="card"><h2>${icon('target')} תקציב לחודש</h2>
+      <p class="small" style="margin:0 0 10px">קבעו כמה מותר להוציא בחודש על סופר, מסעדות או קניות. האפליקציה תראה כמה כבר יצא, ותזהיר כשמגיעים ל-80%.</p>
+      <button class="btn primary" data-act="budget-new">${icon('target')} קביעת תקציב</button></section>`;
+  }
+  const rows = cats.map(c => {
+    const spent = Math.max(0, spentIn(c, m)), cap = b[c], pc = cap ? spent / cap * 100 : 0;
+    const col = pc >= 100 ? 'var(--rose)' : pc >= 80 ? 'var(--gold)' : 'var(--green-light)';
+    return `<div class="budget tap" data-budget="${esc(c)}"><div class="line" style="padding:6px 0 4px"><span class="lbl">${esc(c)}<span class="sub">${pc >= 100 ? `חריגה של ${money(spent - cap)}` : `נשארו ${money(cap - spent)}`}</span></span>
+      <span class="amt">${money(spent)} <span class="muted small">מתוך ${money(cap)}</span></span></div>
+      <div class="meter"><span style="width:${Math.min(100, pc)}%;background:${col}"></span></div></div>`;
+  }).join('');
+  return `<section class="card"><h2>${icon('target')} תקציב לחודש <small>${esc(monthName(m))}, לפי מה שיובא</small></h2>${rows}
+    <button class="btn ghost small" data-act="budget-new" style="margin-top:8px;padding:6px 0">+ עוד תקציב</button></section>`;
+}
+
 export function viewSave() {
   if (!hasData()) return `${title('חיסכון')}${emptyHome()}`;
   const d = S.data;
-  return `${title('איך לחסוך', 'מבוסס על ההוצאות של המשפחה')}${goalCard(d)}${tipsList(d)}${recurringCard(d)}${annualCard(d)}`;
+  return `${title('איך לחסוך', 'מבוסס על ההוצאות של המשפחה')}${goalCard(d)}${budgetsCard()}${installmentsCard(d)}${smallCard(d)}${transfersCard(d)}${debtCard(d)}${tipsList(d)}${recurringCard(d)}${annualCard(d)}`;
 }
 
 // ------------------------------------------------------------------ transactions
@@ -253,7 +373,7 @@ export function viewTx() {
   list.forEach(t => totals.set(t.d, (totals.get(t.d) || 0) + (t.x ? 0 : t.a)));
   byDay.forEach((rows, d) => {
     html += `<div class="day"><span>${dayLabel(d)}</span>${money(totals.get(d), true)}</div><div class="tx">${rows.map(t => {
-      const sub = [t.x ? 'לא נספר' : '', t.p ? 'בקליטה' : '', t.c, t.o, t.card ? `כרטיס ${t.card}` : '', t.i ? `תשלום ${String(t.i).replace('/', ' מתוך ')}` : '',
+      const sub = [t.x ? 'לא נספר' : '', t.p ? 'בקליטה' : '', (S.notes || {})[t.u] ? `"${(S.notes || {})[t.u]}"` : '', t.c, t.o, t.card ? `כרטיס ${t.card}` : '', t.i ? `תשלום ${String(t.i).replace('/', ' מתוך ')}` : '',
         t.src === 'max' && t.cd && t.cd !== t.d ? `חיוב ב-${dm(t.cd)}` : ''].filter(Boolean).join(', ');
       return line(`<span class="ellip${t.p ? ' pend' : ''}"><span class="owner-bar" style="background:${colorOf(t.o)}"></span>${esc(t.s)}</span>`,
         `<span class="${t.a > 0 && !t.x ? 'pos' : ''}${t.p ? ' pend' : ''}">${money(t.a, true)}</span>`, esc(sub), '', `${t.u ? `data-tx="${esc(t.u)}"` : ''}${t.x ? ' data-off="1"' : ''}`);
@@ -288,6 +408,30 @@ export function viewMonths() {
   return html;
 }
 
+/** a month beside the month before and the same month a year before: the whole, and the categories that moved
+    most (only when both months have their card statements: else the categories cannot be compared) */
+function compareMonth(month) {
+  const c = S.data && S.data.month_cmp && S.data.month_cmp[month];
+  const now = (S.data.month_cats && S.data.month_cats[month]) || [];
+  if (!c || !now.length) return '';
+  const cur = Object.fromEntries(now.map(x => [x.c, x.t]));
+  const sum = o => Object.values(o || {}).reduce((a, v) => a + Math.max(0, v), 0);
+  const detailed = o => o && (o[UND] || 0) < 0.2 * sum(o);
+  const pctTxt = (a, b) => (b ? `${a >= b ? '+' : '−'}${fmt(Math.abs(a - b) / b * 100)}%` : '');
+  const part = (o, label) => {
+    if (!o) return '';
+    const a = sum(cur), b = sum(o);
+    let h = `<p class="small" style="margin:10px 0 2px;color:var(--ink)">לעומת ${label}: יצאו ${money(a)} מול ${money(b)} <span class="${a > b ? 'neg' : 'pos'}">${pctTxt(a, b)}</span></p>`;
+    if (detailed(cur) && detailed(o)) {
+      const moves = [...new Set([...Object.keys(cur), ...Object.keys(o)])].filter(k => k !== UND)
+        .map(k => [k, (cur[k] || 0) - (o[k] || 0)]).filter(([, dlt]) => Math.abs(dlt) >= 200).sort((x, y) => Math.abs(y[1]) - Math.abs(x[1])).slice(0, 4);
+      if (moves.length) h += `<p class="small" style="margin:0">${moves.map(([k, dlt]) => `${esc(k)} <span class="${dlt > 0 ? 'neg' : 'pos'}">${dlt > 0 ? '+' : '−'}${fmt(Math.abs(dlt))} ₪</span>`).join(' · ')}</p>`;
+    }
+    return h;
+  };
+  return part(c.prev, monthName(addMonths(month, -1))) + part(c.ly, `${monthName(month)} ${Number(month.slice(0, 4)) - 1}`);
+}
+
 /** an open month: card charges with no details, and the biggest lines (tap one to change its category) */
 function monthDetails(month) {
   const all = (S.data && S.data.transactions) || [];
@@ -305,6 +449,7 @@ function monthDetails(month) {
       line(`<span class="ellip">${esc(t.s)}</span>`, `<span class="${t.a > 0 ? 'pos' : ''}">${money(t.a, true)}</span>`,
         esc([dm(t.d), t.c, t.card ? `כרטיס ${t.card}` : ''].filter(Boolean).join(', ')), '', t.u ? `data-tx="${esc(t.u)}"` : '')).join('')}</div>`;
   }
+  html += compareMonth(month);
   const off = inMonth.filter(t => t.x);
   if (off.length) {
     const sum = off.reduce((a, t) => a + Math.abs(t.a), 0);
@@ -402,6 +547,8 @@ export function viewMore() {
     ${line(`${icon('users', 'inl')} מי הוציא מה`, icon('chev'), '', '', 'data-go="people"')}
     ${line(`${icon('repeat', 'inl')} מנויים והוראות קבע`, icon('chev'), '', '', 'data-go="recurring"')}
     ${line(`${icon('calendar', 'inl')} הוצאות שנתיות`, icon('chev'), '', '', 'data-go="planner"')}
+    ${line(`${icon('card', 'inl')} תשלומים פעילים`, icon('chev'), '', '', 'data-go="installments"')}
+    ${line(`${icon('bank', 'inl')} הלוואות ומשכנתא`, icon('chev'), '', '', 'data-go="loans"')}
     ${line(`${icon('download', 'inl')} קבצים שיובאו`, icon('chev'), '', '', 'data-go="imports"')}</section>`;
   // Drive
   const drv = cfg.myFileId ? (f.mine.dirty ? 'יש שינויים שעוד לא נשמרו' : `נשמר ${ago(f.mine.pushedAt)}`) : 'עוד לא נשמר בדרייב';
@@ -436,12 +583,17 @@ export function viewMore() {
 
 // ------------------------------------------------------------------ render & bind
 const VIEWS = { home: viewHome, save: viewSave, tx: viewTx, months: viewMonths, more: viewMore,
-  people: viewPeople, recurring: viewRecurring, planner: viewPlanner, imports: viewImports };
-const PARENT = { people: 'more', recurring: 'save', planner: 'save', imports: 'more' };
+  people: viewPeople, recurring: viewRecurring, planner: viewPlanner, imports: viewImports, installments: viewInstallments, loans: viewLoans };
+const PARENT = { people: 'more', recurring: 'save', planner: 'save', imports: 'more', installments: 'save', loans: 'save' };
 
 export function render() {
   const fn = VIEWS[S.tab] || viewHome;
   $('#view').innerHTML = fn();
+  if (S.scrollMonth && S.tab === 'months') {
+    S.scrollMonth = false;
+    const el = $(`#view [data-month="${S.openMonth}"]`);
+    if (el) el.scrollIntoView({ block: 'start' });
+  }
   const tab = PARENT[S.tab] || S.tab;
   $$('#tabbar button').forEach(b => { if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   bind();
@@ -465,6 +617,8 @@ function bind() {
   $$('[data-tx]', v).forEach(el => el.onclick = () => A.openTx(el.dataset.tx));
   $$('[data-rec]', v).forEach(el => el.onclick = () => A.openRecurring(el.dataset.rec));
   $$('[data-card]', v).forEach(el => el.onclick = () => A.pickOwner([el.dataset.card]));
+  $$('[data-budget]', v).forEach(el => el.onclick = () => A.act('budget-edit', el));
+  $$('[data-open-month]', v).forEach(el => el.onclick = e => { e.stopPropagation(); S.openMonth = el.dataset.openMonth; S.scrollMonth = true; go('months'); });
   $$('[data-del-import]', v).forEach(el => el.onclick = e => { e.stopPropagation(); A.removeImport(el.dataset.delImport); });
   $$('[data-act]', v).forEach(el => el.onclick = () => A.act(el.dataset.act, el));
   const s = $('#txSearch');

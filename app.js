@@ -7,7 +7,7 @@ import * as D from './lib/drive.js';
 import * as C from './lib/crypto.js';
 import { Family } from './lib/family.js';
 
-const APP_VERSION = '1.3.1';
+const APP_VERSION = '1.4.0';
 const DEFAULTS = Object.assign({ clientId: '', apiKey: '' }, globalThis.FINPAL_FAMILY || {});
 const UNLOCK_KEY = 'fp_unlocked';
 
@@ -78,6 +78,18 @@ function latestGoal(events) {
   return g;
 }
 
+/** the family's budgets by category, notes by transaction and goals: the last word of either phone counts */
+function latestSettings(events) {
+  const budgets = {}, notes = {};
+  let goals = [];
+  for (const e of events) {
+    if (e.t === 'budget') { if (e.amount > 0) budgets[e.cat] = e.amount; else delete budgets[e.cat]; }
+    else if (e.t === 'note') { if (e.text) notes[e.uid] = e.text; else delete notes[e.uid]; }
+    else if (e.t === 'goals') goals = e.goals || [];
+  }
+  return { budgets, notes, goals };
+}
+
 function apply(out) {
   S.data = out.payload || null;
   S.cards = out.cards || [];
@@ -97,6 +109,7 @@ async function rebuild() {
         const events = fam.events();
         S.names = fam.names();
         S.goal = latestGoal(events);
+        Object.assign(S, latestSettings(events));
         const today = localDate();
         const key = `${APP_VERSION}|${await fam.eventsKey()}|${today}|${S.names.A}|${S.names.B}`;
         if (!events.some(e => e.t === 'import')) { apply({}); continue; }
@@ -408,12 +421,17 @@ const actions = {
     toast('הקובץ הוסר');
   },
   setLockMin: async m => { await fam.setConfig({ lockMin: m }); toast('נשמר'); },
+  setBudget: async (cat, amount) => { await change({ t: 'budget', cat, amount: Math.max(0, Math.round(amount || 0)) }); },
+  setNote: async (uid, text) => { await change({ t: 'note', uid, text: String(text || '').trim().slice(0, 120) }); },
+  setGoals: async goals => { await change({ t: 'goals', goals }); },
   act: async (name, el) => {
     switch (name) {
       case 'import': F.importSheet(); break;
       case 'howto': F.howtoSheet(); break;
       case 'forecast': F.forecastSheet(); break;
       case 'reminders': F.remindersSheet(); break;
+      case 'budget-new': F.budgetSheet(null); break;
+      case 'budget-edit': F.budgetSheet(el && el.dataset.budget); break;
       case 'invite': F.inviteSheet(); break;
       case 'connect': F.connectScreen(true); break;
       case 'sync': sync({ manual: true }); break;
