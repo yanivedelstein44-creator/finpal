@@ -1,7 +1,7 @@
 /* FinPal Family - the screens: home, savings, transactions, months, more, and the pages behind them. */
 import {
   S, $, $$, esc, money, abs$, pct, fmt, monthLabel, monthName, shortMonth, dmy, dm, dayLabel, line, barRows, icon,
-  who, colorOf, avatar, daysLeftInMonth, ago, COLORS, notice, localDate
+  who, colorOf, avatar, daysLeftInMonth, ago, COLORS, notice, localDate, catIcon, countUp, themePref
 } from './kit.js';
 
 let A = {}; // actions, set by app.js
@@ -56,7 +56,7 @@ function heroCard(d) {
   })() : '';
   return `<section class="hero${n == null ? '' : ' tap'}" aria-label="החודש במבט אחד"${n == null ? '' : ' data-act="forecast" role="button" tabindex="0"'}>
     <div class="k">${esc(monthLabel(d.month))} · צפי לסוף החודש${prevMonthLink(d)}</div>
-    <div class="big ${n < 0 ? 'neg' : ''}">${n == null ? '—' : money(n, true)}</div>
+    <div class="big ${n < 0 ? 'neg' : ''}"${n == null ? '' : ` data-count="${Math.round(n)}" data-signed="1"`}>${n == null ? '—' : money(n, true)}</div>
     <div class="say">${n == null ? '' : `${n >= 0 ? 'זה מה שצפוי להישאר בסוף החודש' : 'זה מה שצפוי לחסור בסוף החודש'}, לפי מה שכבר עבר החודש והממוצע שלכם. <u>איך חישבנו?</u>`}</div>
     <div class="stats">
       <div class="stat"><span>נכנסו</span><b>${abs$(f.income_actual)}</b></div>
@@ -66,11 +66,23 @@ function heroCard(d) {
 }
 
 /** a salary or a card charge by name: "משכורת: עיריית ראשל"צ", "חיוב לאומי ויזה, כרטיס 8149" (not escaped) */
-export function payName(i) {
+/** the payer or the card company as the bank writes it, without the bank's additions */
+function payerOf(i) {
   // "משכורת - בית חולים" under the title "משכורת": the payer only; the bank's "-י" at the end goes
-  const name = String(i.name || '').replace(/[-\s]י$/, '').replace(/^מקס איט.*$/, 'MAX').replace(/^משכורת\s*-\s*(?=\S)/, '');
-  if (i.kind === 'income') return `${i.category === 'קצבאות וביטוח לאומי' ? 'קצבה' : 'משכורת'}: ${name}`;
+  return String(i.name || '').replace(/[-\s]י$/, '').replace(/^מקס איט.*$/, 'MAX').replace(/^משכורת\s*-\s*(?=\S)/, '');
+}
+const incomeWord = i => (i.category === 'קצבאות וביטוח לאומי' ? 'קצבה' : 'משכורת');
+export function payName(i) {
+  const name = payerOf(i);
+  if (i.kind === 'income') return `${incomeWord(i)}: ${name}`;
   return `חיוב ${name}${i.card ? `, כרטיס ${i.card}` : ''}`;
+}
+/** in a sentence: "משכורת מעיריית…", "קצבה מביטוח לאומי", "חיוב לאומי ויזה של כרטיס 8843" (not escaped) */
+function payPhrase(i) {
+  const name = payerOf(i);
+  if (i.kind !== 'income') return `חיוב ${name}${i.card ? ` של כרטיס ${i.card}` : ''}`;
+  // the prefix letter before a name in Latin letters or digits takes a hyphen: מ-MAX
+  return `${incomeWord(i)} ${/^[\u0590-\u05FF]/.test(name) ? 'מ' : 'מ-'}${name}`;
 }
 
 /** the salaries and card charges that come every month: has each come this month, by the bank's file */
@@ -101,7 +113,7 @@ function budgetAlerts() {
   const near = Object.keys(b).map(c => [c, Math.max(0, spentIn(c, m)), b[c]]).filter(([, s, cap]) => cap && s >= 0.8 * cap);
   if (!near.length) return '';
   return `<section class="card tap" data-go-tab="save"><h2>${icon('target')} תקציב <small>${near.some(([, s, cap]) => s >= cap) ? 'יש חריגה' : 'מתקרבים לגבול'}</small></h2>
-    ${near.map(([c, s, cap]) => line(esc(c), `<span class="${s >= cap ? 'neg' : ''}">${money(s)}</span>`, `${fmt(s / cap * 100)}% מהתקציב`, `מתוך ${money(cap)}`)).join('')}</section>`;
+    ${near.map(([c, s, cap]) => line(esc(c), `<span class="${s >= cap ? 'neg' : ''}">${money(s)}</span>`, `${fmt(s / cap * 100)}% מהתקציב`, `מתוך ${money(cap)}`, '', catIcon(c))).join('')}</section>`;
 }
 
 function expectedCard(d) {
@@ -117,7 +129,79 @@ function expectedCard(d) {
     ${late ? notice(`${late === 1 ? 'משהו שמגיע כל חודש לא הופיע' : `${late} דברים שמגיעים כל חודש לא הופיעו`} בדף הבנק בזמן. כדאי לבדוק.`) : ''}
     ${items.map(i => expectedLine(i, e.as_of)).join('')}
     ${old ? `<p class="small" style="margin:8px 0 0">דף הבנק שיובא מסתיים ב-${dm(e.as_of)}. כדי לראות מה נכנס וירד מאז, ייבאו דף חשבון עדכני.</p>` : ''}
-    ${(e.reminders || []).length ? `<div class="line tap" data-act="reminders" style="margin-top:6px"><span class="lbl">${icon('calendar')} תזכורות לייבוא קבצים<span class="sub">${(e.reminders || []).map(r => `ב-${r.day}`).join(', ')} לחודש, אחרי שהמשכורות והחיובים נכנסים</span></span><span class="amt" style="color:var(--green)">הוספה ליומן</span></div>` : ''}</section>`;
+    ${(e.reminders || []).length ? `<div class="line tap" data-act="reminders" style="margin-top:6px"><span class="lbl">${icon('calendar', 'inl')}תזכורות לייבוא קבצים<span class="sub">${(e.reminders || []).map(r => `ב-${r.day}`).join(', ')} לחודש, אחרי שהמשכורות והחיובים נכנסים</span></span><span class="amt" style="color:var(--green)">הוספה ליומן</span></div>` : ''}</section>`;
+}
+
+/** one sentence for today, the most useful one: something that did not come, what comes in the next days,
+    a budget, a goal. Nothing when there is nothing worth saying. */
+export function todayLine(d, now = new Date()) {
+  const e = d.expected || {}, items = e.items || [];
+  const say = (ic, html, warn) => `<p class="today-line${warn ? ' warn' : ''}">${icon(ic)}<span>${html}</span></p>`;
+  const late = items.filter(i => i.status === 'late');
+  if (late.length === 1) {
+    const i = late[0], inc = i.kind === 'income';
+    return say('alert', `${esc(payName(i))} · ${inc ? 'לא נכנסה' : 'לא ירד'} עד ${dm(e.as_of)}, ובדרך כלל ${inc ? 'נכנסת' : 'יורד'} ב-${i.day} לחודש. כדאי לבדוק.`, true);
+  }
+  if (late.length > 1) return say('alert', `${late.length} דברים שמגיעים כל חודש לא הופיעו בדף הבנק בזמן. הפרטים למטה.`, true);
+  const day = now.getDate();
+  const soon = items.filter(i => (i.status === 'expected' || i.status === 'unknown') && i.day >= day && i.day <= day + 3)
+    .sort((a, b) => a.day - b.day);
+  if (soon.length) {
+    const when = i => { const k = i.day - day; return k === 0 ? 'היום' : k === 1 ? 'מחר' : k === 2 ? 'מחרתיים' : `ב-${i.day}.${now.getMonth() + 1}`; };
+    if (soon.length === 1) {
+      const i = soon[0];
+      return say('calendar', `${when(i)} ${i.kind === 'income' ? 'צפויה להיכנס' : 'צפוי לרדת'} ${esc(payPhrase(i))}, בערך ${money(i.amount)}.`);
+    }
+    return say('calendar', `בימים הקרובים: ${soon.slice(0, 3).map(i => `${when(i)} ${esc(payPhrase(i))} (כ-${money(i.amount)})`).join(' · ')}.`);
+  }
+  // the budget nearest its sum (from half of it on)
+  const m = localDate(now).slice(0, 7), b = S.budgets || {};
+  const bud = Object.keys(b).map(c => ({ c, s: Math.max(0, spentIn(c, m)), cap: b[c] })).filter(x => x.cap > 0 && x.s >= 0.5 * x.cap)
+    .sort((x, y) => y.s / y.cap - x.s / x.cap)[0];
+  if (bud) {
+    return bud.s >= bud.cap
+      ? say('target', `${esc(bud.c)} · יצאו ${money(bud.s)} החודש, ${money(bud.s - bud.cap)} מעל התקציב.`, true)
+      : say('target', `${esc(bud.c)} · נשארו ${money(bud.cap - bud.s)} מתוך ${money(bud.cap)} לחודש הזה.`);
+  }
+  // the goal with the nearest date
+  const g = (S.goals || []).map(x => ({ x, n: goalMonths(x.by, m) })).filter(o => o.n > 0 && (o.x.saved || 0) < o.x.amount)
+    .sort((p, q) => p.n - q.n)[0];
+  if (g) {
+    const left = g.x.amount - (g.x.saved || 0);
+    return say('flag', `${esc(g.x.name)} · חסרים ${money(left)}. ${money(Math.ceil(left / g.n))} בחודש יביאו אתכם לשם עד ${esc(monthLabel(g.x.by))}.`);
+  }
+  return '';
+}
+
+/** in the first ten days of a month: the month that was, in one card */
+const RECAP_KEY = 'finpal.recap';
+function recapHidden() { try { return localStorage.getItem(RECAP_KEY) || ''; } catch (e) { return ''; } }
+export function hideRecap(m) { try { localStorage.setItem(RECAP_KEY, m); } catch (e) { /* private mode */ } }
+export function recapCard(d, now = new Date()) {
+  if (now.getDate() > 10) return '';
+  const prev = addMonths(d.month, -1);
+  const m = (d.months || []).find(x => x.m === prev);
+  if (!m || !(m.inc > 0 || m.exp > 0) || recapHidden() === prev) return '';
+  const before = (d.months || []).find(x => x.m === addMonths(prev, -1));
+  const all = ((d.month_cats || {})[prev] || []).filter(c => c.t > 0);
+  const top = all.filter(c => c.c !== UND).slice(0, 3);
+  const und = all.find(c => c.c === UND), gen = all.find(c => c.c === 'כללי');
+  const net = m.net;
+  let cmp = '';
+  if (before && before.exp > 0) {
+    const dlt = m.exp - before.exp;
+    cmp = Math.abs(dlt) < 0.02 * before.exp ? `כמו ב${esc(monthName(before.m))}.`
+      : `<span class="${dlt > 0 ? 'neg' : 'pos'}">${money(Math.abs(dlt))} ${dlt > 0 ? 'יותר' : 'פחות'}</span> מאשר ב${esc(monthName(before.m))}.`;
+  }
+  return `<section class="card recap tap" data-open-month="${esc(prev)}" aria-label="סיכום ${esc(monthName(prev))}">
+    <h2>${icon('calendar')} החודש שהיה: ${esc(monthLabel(prev))} <button class="btn ghost small" data-act="recap-hide" data-m="${esc(prev)}" style="padding:0">הסתרה</button></h2>
+    <div class="big ${net >= 0 ? 'pos' : 'neg'}">${net >= 0 ? `נשארו ${abs$(net)}` : `יצאו ${abs$(net)} יותר ממה שנכנס`}</div>
+    <div class="trio"><div><span>נכנסו</span><b>${abs$(m.inc)}</b></div><div><span>יצאו</span><b>${abs$(m.exp)}</b></div><div><span>נחסכו</span><b>${abs$(m.sav)}</b></div></div>
+    ${cmp ? `<p class="small" style="margin:2px 0 6px">יצאו ${cmp}</p>` : ''}
+    ${top.length ? `<p class="small" style="margin:8px 0 0;color:var(--ink)">על מה יצא הכי הרבה</p>${top.map(c => line(esc(c.c), money(c.t), '', '', '', catIcon(c.c, true))).join('')}` : ''}
+    ${und && m.exp && und.t >= 0.2 * m.exp ? `<p class="small" style="margin:6px 0 0">${money(und.t)} יצאו בחיובי אשראי בלי פירוט. כדי לראות על מה, ייבאו את דף האשראי של ${esc(monthName(prev))}.</p>` : ''}
+    ${gen && m.exp && gen.t >= 0.1 * m.exp ? `<p class="small" style="margin:6px 0 0">${money(gen.t)} עוד בלי קטגוריה (כללי). בלשונית תנועות אפשר לסווג בית עסק פעם אחת, והאפליקציה תזכור.</p>` : ''}
+    <p class="small" style="margin:8px 0 0;color:var(--navy2)">הקישו לכל הפרטים של ${esc(monthName(prev))}</p></section>`;
 }
 
 function splitCard() {
@@ -145,8 +229,8 @@ function catsCard(d) {
   const cats = (d.month_cats && d.month_cats[d.month]) || [];
   if (!cats.length) return '';
   const top = cats.slice(0, 7), rest = cats.slice(7).reduce((a, c) => a + c.t, 0);
-  const items = top.map(c => ({ label: c.c, value: c.t, color: c.col, attrs: `data-cat="${esc(c.c)}" style="cursor:pointer"` }));
-  if (rest > 0) items.push({ label: 'שאר הקטגוריות', value: rest, color: 'var(--ink3)' });
+  const items = top.map(c => ({ label: c.c, ic: c.c, value: c.t, color: c.col, attrs: `data-cat="${esc(c.c)}" style="cursor:pointer"` }));
+  if (rest > 0) items.push({ label: 'שאר הקטגוריות', ic: 'שאר הקטגוריות', value: rest, color: 'var(--ink3)' });
   return `<section class="card"><h2>לאן הלך הכסף <small>הקישו על קטגוריה לפירוט</small></h2>${barRows(items)}</section>`;
 }
 
@@ -177,7 +261,7 @@ function alertsCard() {
 export function viewHome() {
   if (!hasData()) return emptyHome();
   const d = S.data;
-  return `${heroCard(d)}${budgetAlerts()}${expectedCard(d)}${tipPreview(d)}${splitCard()}${flowCard(d)}${catsCard(d)}${alertsCard()}`;
+  return `${todayLine(d)}${heroCard(d)}${recapCard(d)}${budgetAlerts()}${expectedCard(d)}${tipPreview(d)}${splitCard()}${flowCard(d)}${catsCard(d)}${alertsCard()}`;
 }
 
 // ------------------------------------------------------------------ savings
@@ -208,10 +292,47 @@ function goalCard(d) {
   const ok = projected >= goal;
   return `<section class="card"><h2>${icon('seed')} יעד החיסכון: ${abs$(goal)} בחודש <button class="btn ghost small" data-act="goal-edit" style="padding:0">שינוי</button></h2>
     <div class="ring"><svg viewBox="0 0 92 92" aria-hidden="true"><circle class="bg" cx="46" cy="46" r="40"/>
-      <circle class="fg" cx="46" cy="46" r="40" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${(C * (1 - ratio)).toFixed(1)}" style="stroke:${ok ? 'var(--green)' : 'var(--gold)'}"/></svg>
+      <circle class="fg" cx="46" cy="46" r="40" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${(C * (1 - ratio)).toFixed(1)}" style="stroke:${ok ? 'var(--green)' : 'var(--gold)'};--full:${C.toFixed(1)}"/></svg>
       <div class="txt"><b>${projected > 0 ? abs$(projected) : '₪0'}</b><span class="small">${ok ? 'בקצב הזה תעמדו ביעד, כל הכבוד!' : `בקצב הזה יחסרו ${abs$(goal - Math.max(0, projected))} ליעד`}</span></div></div>
     <div class="line" style="margin-top:8px"><span class="lbl">אפשר להוציא עוד החודש<span class="sub">ועדיין לעמוד ביעד, אחרי ההוצאות הקבועות שעוד יגיעו</span></span>
       <span class="amt ${avail > 0 ? 'pos' : 'neg'}">${money(Math.max(0, avail))}<span class="sub">${avail > 0 ? `כ-${money(daily)} ליום` : 'כדאי לעצור הוצאות לא הכרחיות'}</span></span></div></section>`;
+}
+
+/** months left to save for a goal by `by` (YYYY-MM), this month included; 0 when it has passed */
+export function goalMonths(by, cur) {
+  if (!by) return 0;
+  const [y, m] = by.split('-').map(Number), [cy, cm] = cur.split('-').map(Number);
+  return Math.max(0, (y * 12 + m) - (cy * 12 + cm) + 1);
+}
+
+/** the family's goals: what each is for, how much is put aside, how much a month gets there in time */
+export function goalsCard(d, now = new Date()) {
+  const goals = S.goals || [];
+  const cur = localDate(now).slice(0, 7);
+  if (!goals.length) {
+    return `<section class="card"><h2>${icon('flag')} יעדים לחיסכון</h2>
+      <p class="small" style="margin:0 0 10px">חופשה, רכב, קרן לימודים: לכל יעד שם, סכום ותאריך. האפליקציה תגיד כמה צריך לשים בצד בכל חודש כדי להגיע בזמן.</p>
+      <button class="btn" data-act="goal-new">${icon('flag')} יעד חדש</button></section>`;
+  }
+  let need = 0;
+  const rows = goals.map((g, k) => {
+    const saved = g.saved || 0, left = Math.max(0, g.amount - saved), n = goalMonths(g.by, cur);
+    const done = left <= 0, pc = Math.min(100, saved / g.amount * 100);
+    let sub;
+    if (done) sub = 'הגעתם ליעד. כל הכבוד!';
+    else if (g.by && n > 0) { need += left / n; sub = `עד ${esc(monthLabel(g.by))} · כ-${money(Math.ceil(left / n))} בחודש`; }
+    else if (g.by) sub = `התאריך (${esc(monthLabel(g.by))}) עבר. חסרים ${money(left)}`;
+    else sub = `חסרים ${money(left)}`;
+    return `<div class="goal tap${done ? ' done' : ''}" data-goal="${k}"><div class="line" style="padding:0"><span class="lbl"><b>${esc(g.name)}</b><span class="sub">${sub}</span></span>
+      <span class="amt">${money(saved)} <span class="muted small">מתוך ${money(g.amount)}</span></span></div>
+      <div class="meter"><span style="width:${pc}%"></span></div></div>`;
+  }).join('');
+  const f = d.forecast || {}, nf = f.net_forecast;
+  const sumLine = need >= 1 ? `<p class="small" style="margin:8px 0 0">כדי להגיע לכל היעדים בזמן צריך לשים בצד כ-<b>${money(Math.ceil(need))}</b> בחודש.${nf == null ? ''
+    : nf >= need ? ' בקצב של החודש הזה, זה אפשרי.' : nf >= 0 ? ` בקצב של החודש הזה צפויים להישאר ${money(nf)}.`
+      : ` בקצב של החודש הזה צפוי לחסור ${money(-nf)} עוד לפני החיסכון.`}</p>` : '';
+  return `<section class="card"><h2>${icon('flag')} יעדים לחיסכון <small>הקישו על יעד לעדכון</small></h2>${rows}${sumLine}
+    ${goals.length < 12 ? `<button class="btn ghost small" data-act="goal-new" style="margin-top:8px;padding:6px 0">+ עוד יעד</button>` : ''}</section>`;
 }
 
 function tipsList(d) {
@@ -339,7 +460,7 @@ function budgetsCard() {
   const rows = cats.map(c => {
     const spent = Math.max(0, spentIn(c, m)), cap = b[c], pc = cap ? spent / cap * 100 : 0;
     const col = pc >= 100 ? 'var(--rose)' : pc >= 80 ? 'var(--gold)' : 'var(--green-light)';
-    return `<div class="budget tap" data-budget="${esc(c)}"><div class="line" style="padding:6px 0 4px"><span class="lbl">${esc(c)}<span class="sub">${pc >= 100 ? `חריגה של ${money(spent - cap)}` : `נשארו ${money(cap - spent)}`}</span></span>
+    return `<div class="budget tap" data-budget="${esc(c)}"><div class="line withic" style="padding:6px 0 4px">${catIcon(c)}<span class="lbl">${esc(c)}<span class="sub">${pc >= 100 ? `חריגה של ${money(spent - cap)}` : `נשארו ${money(cap - spent)}`}</span></span>
       <span class="amt">${money(spent)} <span class="muted small">מתוך ${money(cap)}</span></span></div>
       <div class="meter"><span style="width:${Math.min(100, pc)}%;background:${col}"></span></div></div>`;
   }).join('');
@@ -350,7 +471,7 @@ function budgetsCard() {
 export function viewSave() {
   if (!hasData()) return `${title('חיסכון')}${emptyHome()}`;
   const d = S.data;
-  return `${title('איך לחסוך', 'מבוסס על ההוצאות של המשפחה')}${goalCard(d)}${budgetsCard()}${installmentsCard(d)}${smallCard(d)}${transfersCard(d)}${debtCard(d)}${tipsList(d)}${recurringCard(d)}${annualCard(d)}`;
+  return `${title('איך לחסוך', 'מבוסס על ההוצאות של המשפחה')}${goalCard(d)}${goalsCard(d)}${budgetsCard()}${installmentsCard(d)}${smallCard(d)}${transfersCard(d)}${debtCard(d)}${tipsList(d)}${recurringCard(d)}${annualCard(d)}`;
 }
 
 // ------------------------------------------------------------------ transactions
@@ -375,8 +496,9 @@ export function viewTx() {
     html += `<div class="day"><span>${dayLabel(d)}</span>${money(totals.get(d), true)}</div><div class="tx">${rows.map(t => {
       const sub = [t.x ? 'לא נספר' : '', t.p ? 'בקליטה' : '', (S.notes || {})[t.u] ? `"${(S.notes || {})[t.u]}"` : '', t.c, t.o, t.card ? `כרטיס ${t.card}` : '', t.i ? `תשלום ${String(t.i).replace('/', ' מתוך ')}` : '',
         t.src === 'max' && t.cd && t.cd !== t.d ? `חיוב ב-${dm(t.cd)}` : ''].filter(Boolean).join(', ');
-      return line(`<span class="ellip${t.p ? ' pend' : ''}"><span class="owner-bar" style="background:${colorOf(t.o)}"></span>${esc(t.s)}</span>`,
-        `<span class="${t.a > 0 && !t.x ? 'pos' : ''}${t.p ? ' pend' : ''}">${money(t.a, true)}</span>`, esc(sub), '', `${t.u ? `data-tx="${esc(t.u)}"` : ''}${t.x ? ' data-off="1"' : ''}`);
+      return line(`<span class="ellip${t.p ? ' pend' : ''}">${esc(t.s)}</span>`,
+        `<span class="${t.a > 0 && !t.x ? 'pos' : ''}${t.p ? ' pend' : ''}">${money(t.a, true)}</span>`, esc(sub), '', `${t.u ? `data-tx="${esc(t.u)}"` : ''}${t.x ? ' data-off="1"' : ''}`,
+        catIcon(t.c, false, colorOf(t.o)));
     }).join('')}</div>`;
   });
   if (list.length > S.txLimit) html += `<button class="btn" id="txMore" style="margin-top:12px">עוד תנועות</button>`;
@@ -401,7 +523,7 @@ export function viewMonths() {
       <div class="line" style="padding:0"><span class="lbl" style="font-weight:600;font-size:17px">${monthLabel(m.m)}</span><span class="amt ${m.net >= 0 ? 'pos' : 'neg'}">${money(m.net, true)}</span></div>
       <div style="margin-top:8px">${barRows([{ label: 'נכנסו', value: m.inc, color: 'var(--green)' }, { label: 'יצאו', value: m.exp, color: 'var(--gold)' }]
         .concat(m.sav ? [{ label: 'נחסך', value: m.sav, color: 'var(--navy2)' }] : []), mx2)}</div>
-      ${open ? `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--hair)">${cats.length ? barRows(cats.map(c => ({ label: c.c, value: c.t, color: c.col })))
+      ${open ? `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--hair)">${cats.length ? barRows(cats.map(c => ({ label: c.c, ic: c.c, value: c.t, color: c.col })))
         : '<p class="small" style="margin:0">פירוט לפי קטגוריה נשמר לחצי השנה האחרונה.</p>'}${monthDetails(m.m)}</div>` : ''}
     </section>`;
   }).join('');
@@ -447,7 +569,7 @@ function monthDetails(month) {
   if (big.length) {
     html += `<p class="small" style="margin:12px 0 2px;color:var(--ink)">התנועות הגדולות <span class="muted">· הקישו כדי לשנות קטגוריה</span></p><div class="tx">${big.map(t =>
       line(`<span class="ellip">${esc(t.s)}</span>`, `<span class="${t.a > 0 ? 'pos' : ''}">${money(t.a, true)}</span>`,
-        esc([dm(t.d), t.c, t.card ? `כרטיס ${t.card}` : ''].filter(Boolean).join(', ')), '', t.u ? `data-tx="${esc(t.u)}"` : '')).join('')}</div>`;
+        esc([dm(t.d), t.c, t.card ? `כרטיס ${t.card}` : ''].filter(Boolean).join(', ')), '', t.u ? `data-tx="${esc(t.u)}"` : '', catIcon(t.c, false, colorOf(t.o)))).join('')}</div>`;
   }
   html += compareMonth(month);
   const off = inMonth.filter(t => t.x);
@@ -473,7 +595,7 @@ export function viewPeople() {
   const mx = Math.max(1, ...(p.monthly || []).map(m => m.spend));
   html += `<section class="card"><h2>שישה חודשים</h2><div class="cols">${(p.monthly || []).map(m => `<div class="col"><i class="single" style="height:${m.spend / mx * 100}%;background:${col}"></i><span>${shortMonth(m.month)}</span></div>`).join('')}</div></section>`;
   if ((p.insights || []).length) html += `<section class="card tint-a"><h2>מה למדנו</h2>${p.insights.map(t => `<p style="margin:6px 0">${esc(t)}</p>`).join('')}</section>`;
-  if ((p.categories || []).length) html += `<section class="card"><h2>קטגוריות החודש <small>הקו השחור: הממוצע</small></h2>${barRows(p.categories.slice(0, 8).map(c => ({ label: c.category, value: c.current, ref: c.avg, color: col })))}</section>`;
+  if ((p.categories || []).length) html += `<section class="card"><h2>קטגוריות החודש <small>הקו השחור: הממוצע</small></h2>${barRows(p.categories.slice(0, 8).map(c => ({ label: c.category, ic: c.category, value: c.current, ref: c.avg, color: col })))}</section>`;
   if ((p.top_merchants || []).length) html += `<section class="card"><h2>בתי עסק קבועים <small>90 יום</small></h2>${p.top_merchants.slice(0, 6).map(m => line(`<span class="ellip">${esc(m.name)}</span>`, money(m.total), `${m.count} פעמים, בממוצע ${money(m.avg)}`)).join('')}</section>`;
   if ((p.anomalies || []).length) html += `<section class="card"><h2>כדאי לבדוק <small>${p.anomalies.length}</small></h2>${p.anomalies.map(a => line(`<span class="ellip">${esc(a.description)}</span>`, money(a.amount), `${esc(a.text)}. ${dm(a.date)}`)).join('')}</section>`;
   return html;
@@ -570,6 +692,11 @@ export function viewMore() {
     ${line('קוד נעילה', '<span class="tag">כבוי</span>', 'אפשר לבקש קוד בכל פתיחה של האפליקציה')}
     <button class="btn" data-act="pin-on">${icon('lock')} הפעלת קוד נעילה</button>
     <button class="btn" data-act="recovery">${icon('key')} קוד השחזור של המשפחה</button></section>`;
+  // the look: light, dark or as the phone is set
+  const tp = themePref();
+  html += `<section class="card"><h2>${icon('sun')} מראה</h2>
+    <div class="seg" role="group" aria-label="מראה">${[['auto', 'לפי הטלפון', 'phone'], ['light', 'בהיר', 'sun'], ['dark', 'כהה', 'moon']]
+      .map(([k, l, ic]) => `<button data-theme-pick="${k}" aria-pressed="${tp === k}">${icon(ic)}${l}</button>`).join('')}</div></section>`;
   // app
   html += `<section class="card"><h2>${icon('phone')} האפליקציה</h2>
     ${A.inApp() ? '' : `<a class="btn primary" href="FinPal.apk" download="FinPal.apk">${icon('download')} הורדת האפליקציה לאנדרואיד</a>`}
@@ -586,9 +713,21 @@ const VIEWS = { home: viewHome, save: viewSave, tx: viewTx, months: viewMonths, 
   people: viewPeople, recurring: viewRecurring, planner: viewPlanner, imports: viewImports, installments: viewInstallments, loans: viewLoans };
 const PARENT = { people: 'more', recurring: 'save', planner: 'save', imports: 'more', installments: 'save', loans: 'save' };
 
+let shown = { tab: null, data: null };
 export function render() {
   const fn = VIEWS[S.tab] || viewHome;
-  $('#view').innerHTML = fn();
+  const v = $('#view');
+  v.innerHTML = fn();
+  // the cards come in and the bars grow when a screen opens or its numbers change, not on every tap
+  if (shown.tab !== S.tab || shown.data !== S.data) {
+    shown = { tab: S.tab, data: S.data };
+    v.classList.remove('anim');
+    void v.offsetWidth;
+    v.classList.add('anim');
+    clearTimeout(render.t);
+    render.t = setTimeout(() => v.classList.remove('anim'), 1400);
+    countUp(v);
+  }
   if (S.scrollMonth && S.tab === 'months') {
     S.scrollMonth = false;
     const el = $(`#view [data-month="${S.openMonth}"]`);
@@ -620,7 +759,9 @@ function bind() {
   $$('[data-budget]', v).forEach(el => el.onclick = () => A.act('budget-edit', el));
   $$('[data-open-month]', v).forEach(el => el.onclick = e => { e.stopPropagation(); S.openMonth = el.dataset.openMonth; S.scrollMonth = true; go('months'); });
   $$('[data-del-import]', v).forEach(el => el.onclick = e => { e.stopPropagation(); A.removeImport(el.dataset.delImport); });
-  $$('[data-act]', v).forEach(el => el.onclick = () => A.act(el.dataset.act, el));
+  $$('[data-goal]', v).forEach(el => el.onclick = () => A.act('goal-open', el));
+  $$('[data-theme-pick]', v).forEach(el => el.onclick = () => A.setTheme(el.dataset.themePick));
+  $$('[data-act]', v).forEach(el => el.onclick = e => { e.stopPropagation(); A.act(el.dataset.act, el); });
   const s = $('#txSearch');
   if (s) {
     s.oninput = () => { S.txQuery = s.value; S.txLimit = 150; const pos = s.selectionStart; render(); const n = $('#txSearch'); n.focus(); n.setSelectionRange(pos, pos); };

@@ -1,5 +1,5 @@
 /* FinPal Family - the app: start, lock, sync with Google Drive, import, and wiring the screens together. */
-import { S, $, $$, esc, toast, sheet, closeSheet, busy, unbusy, withBusy, icon, localDate, greeting, avatar, ago, fmt } from './ui/kit.js';
+import { S, $, $$, esc, toast, sheet, closeSheet, busy, unbusy, withBusy, icon, localDate, greeting, avatar, ago, fmt, applyTheme, themePref } from './ui/kit.js';
 import * as V from './ui/views.js';
 import * as F from './ui/flows.js';
 import { store, inbox, persist } from './lib/store.js';
@@ -7,11 +7,12 @@ import * as D from './lib/drive.js';
 import * as C from './lib/crypto.js';
 import { Family } from './lib/family.js';
 
-const APP_VERSION = '1.4.0';
+const APP_VERSION = '1.5.0';
 const DEFAULTS = Object.assign({ clientId: '', apiKey: '' }, globalThis.FINPAL_FAMILY || {});
 const UNLOCK_KEY = 'fp_unlocked';
 
 if (window.top !== window.self) { document.body.innerHTML = ''; throw new Error('framed'); }
+applyTheme(themePref()); // the browser's bar in the look of this phone's choice
 
 // the data was deleted, or another family set up, in another window of the app (a Chrome tab next to the
 // installed app): this window starts over instead of writing its old copy back
@@ -424,6 +425,7 @@ const actions = {
   setBudget: async (cat, amount) => { await change({ t: 'budget', cat, amount: Math.max(0, Math.round(amount || 0)) }); },
   setNote: async (uid, text) => { await change({ t: 'note', uid, text: String(text || '').trim().slice(0, 120) }); },
   setGoals: async goals => { await change({ t: 'goals', goals }); },
+  setTheme: pref => { applyTheme(pref); V.render(); },
   act: async (name, el) => {
     switch (name) {
       case 'import': F.importSheet(); break;
@@ -432,6 +434,9 @@ const actions = {
       case 'reminders': F.remindersSheet(); break;
       case 'budget-new': F.budgetSheet(null); break;
       case 'budget-edit': F.budgetSheet(el && el.dataset.budget); break;
+      case 'goal-new': F.goalSheet(null); break;
+      case 'goal-open': F.goalSheet(+el.dataset.goal); break;
+      case 'recap-hide': V.hideRecap(el.dataset.m); V.render(); break;
       case 'invite': F.inviteSheet(); break;
       case 'connect': F.connectScreen(true); break;
       case 'sync': sync({ manual: true }); break;

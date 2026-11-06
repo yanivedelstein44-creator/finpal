@@ -2,7 +2,7 @@
    files, and the small sheets (transaction, owner of a card, subscription, invite, privacy). */
 import {
   S, $, $$, esc, money, abs$, fmt, dm, dmy, icon, line, toast, sheet, closeSheet, busy, unbusy, withBusy, avatar, who,
-  notice, copyText, shareText, ago
+  notice, copyText, shareText, ago, catIcon
 } from './kit.js';
 import * as C from '../lib/crypto.js';
 import * as V from './views.js';
@@ -505,7 +505,8 @@ export function forecastSheet() {
     return shown.map(r => {
       const more = z(r.forecast - r.actual);
       return line(esc(r.category), money(r.forecast),
-        more > 0 ? `${verb} עד עכשיו ${money(z(r.actual))}, בדרך כלל ${money(r.avg)}: צפויים עוד ${money(more)}` : `${verb} עד עכשיו ${money(z(r.actual))}, יותר מהרגיל`);
+        more > 0 ? `${verb} עד עכשיו ${money(z(r.actual))}, בדרך כלל ${money(r.avg)}: צפויים עוד ${money(more)}` : `${verb} עד עכשיו ${money(z(r.actual))}, יותר מהרגיל`,
+        '', '', catIcon(r.category, true));
     }).join('') + (z(rest) > 0 ? line('<span class="muted">שאר הקטגוריות</span>', money(rest)) : '');
   };
   const inc = rows.filter(r => r.kind === 'income'), exp = rows.filter(r => r.kind === 'expense'), sav = rows.filter(r => r.kind === 'saving');
@@ -567,6 +568,86 @@ export function budgetSheet(cat) {
     toast('התקציב נשמר בשני הטלפונים');
   };
   if (cat) $('#bgDel').onclick = async () => { closeSheet(); await A.setBudget(cat, 0); toast('התקציב הוסר'); };
+}
+
+// ------------------------------------------------------------------ goals: a name, a sum, by when, how much is put aside
+/** add a goal (k null) or change one; the whole list is written, the last word of either phone counts */
+export function goalSheet(k) {
+  const goals = (S.goals || []).map(g => Object.assign({}, g));
+  const g = k == null ? null : goals[k];
+  if (k != null && !g) return;
+  const now = new Date();
+  const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  sheet(`<h3>${g ? esc(g.name) : 'יעד חדש'}</h3>
+    <label class="field" for="glName">שם היעד</label>
+    <input id="glName" maxlength="40" placeholder="למשל: חופשה באילת" value="${esc(g ? g.name : '')}">
+    <label class="field" for="glAmt">כמה צריך בסך הכול (₪)</label>
+    <input id="glAmt" type="number" inputmode="numeric" min="1" step="100" value="${g ? g.amount : ''}">
+    <label class="field" for="glBy">עד מתי (לא חובה)</label>
+    <input id="glBy" type="month" min="${thisMonth}" value="${esc(g && g.by ? g.by : '')}">
+    <label class="field" for="glSaved">כמה כבר יש בצד (₪)</label>
+    <input id="glSaved" type="number" inputmode="numeric" min="0" step="100" value="${g && g.saved ? g.saved : ''}" placeholder="0">
+    ${g ? `<div class="row-btns" style="margin-top:8px"><button class="btn small" id="glAdd" style="flex:1">+ הוספתי לחיסכון</button></div>` : ''}
+    <p class="small" id="glHint" style="margin:8px 0 0"></p>
+    <button class="btn primary" id="glSave" style="margin-top:12px">שמירה</button>
+    ${g ? '<button class="btn danger" id="glDel">מחיקת היעד</button>' : ''}<button class="btn ghost" id="glClose">ביטול</button>`);
+  const read = () => ({ name: $('#glName').value.trim().slice(0, 40), amount: Math.round(+$('#glAmt').value || 0),
+    by: /^\d{4}-\d\d$/.test($('#glBy').value) ? $('#glBy').value : null, saved: Math.max(0, Math.round(+$('#glSaved').value || 0)) });
+  const hint = () => {
+    const x = read(), left = x.amount - x.saved, n = V.goalMonths(x.by, thisMonth);
+    $('#glHint').innerHTML = !(x.amount > 0) ? '' : left <= 0 ? 'היעד הושג.'
+      : x.by && n > 0 ? `כדי להגיע בזמן: כ-${money(Math.ceil(left / n))} בכל חודש, ${n === 1 ? 'החודש' : `במשך ${n} חודשים`}.`
+        : x.by ? 'התאריך כבר עבר.' : `חסרים ${money(left)}.`;
+  };
+  ['#glAmt', '#glBy', '#glSaved'].forEach(id => { $(id).oninput = hint; });
+  hint();
+  if (g) {
+    $('#glAdd').onclick = async () => {
+      const v = await amountSheet('כמה הוספתם לחיסכון?', 'הסכום יתווסף למה שכבר יש בצד.');
+      if (v == null) { goalSheet(k); return; }
+      goals[k].saved = Math.max(0, Math.round((goals[k].saved || 0) + v));
+      await A.setGoals(goals);
+      toast('נשמר בשני הטלפונים');
+    };
+  }
+  $('#glClose').onclick = closeSheet;
+  $('#glSave').onclick = async () => {
+    const x = read();
+    if (!x.name) { toast('איך נקרא ליעד?'); return; }
+    if (!(x.amount > 0)) { toast('כמה צריך בסך הכול?'); return; }
+    const item = { name: x.name, amount: x.amount };
+    if (x.by) item.by = x.by;
+    if (x.saved) item.saved = x.saved;
+    if (g) goals[k] = item; else goals.push(item);
+    closeSheet();
+    await A.setGoals(goals.slice(0, 12));
+    toast('היעד נשמר בשני הטלפונים');
+  };
+  if (g) $('#glDel').onclick = async () => {
+    closeSheet();
+    if (!(await confirmSheet({ title: 'למחוק את היעד?', text: `היעד "${esc(g.name)}" יימחק בשני הטלפונים.`, yes: 'מחיקה', danger: true }))) return;
+    goals.splice(k, 1);
+    await A.setGoals(goals);
+    toast('היעד נמחק');
+  };
+}
+
+/** one sum, or null when cancelled */
+function amountSheet(title, text) {
+  return new Promise(resolve => {
+    let done = false;
+    sheet(`<h3>${title}</h3><p>${text}</p><input id="amIn" type="number" inputmode="numeric" min="1" step="50">
+      <button class="btn primary" id="amOk" style="margin-top:12px">הוספה</button><button class="btn ghost" id="amNo">ביטול</button>`,
+    { onClose: () => { if (!done) resolve(null); } });
+    $('#amNo').onclick = () => closeSheet();
+    $('#amOk').onclick = () => {
+      const v = Math.round(+$('#amIn').value || 0);
+      if (!(v > 0)) { toast('כמה?'); return; }
+      done = true;
+      closeSheet();
+      resolve(v);
+    };
+  });
 }
 
 // ------------------------------------------------------------------ reminders to import fresh files

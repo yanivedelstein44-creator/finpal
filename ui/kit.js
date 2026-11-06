@@ -65,7 +65,8 @@ export function who(name) {
   if (name && name === n.B) return 'b';
   return 's';
 }
-export const COLORS = { a: '#23866C', b: '#C8742A', s: '#1F4766' };
+// CSS variables, so that each partner's color follows the light or dark look
+export const COLORS = { a: 'var(--a)', b: 'var(--b)', s: 'var(--s)' };
 export const colorOf = name => COLORS[who(name)];
 export const initial = name => (String(name || '').trim()[0] || '?');
 export function avatar(name, cls) {
@@ -110,9 +111,108 @@ const P = {
   edit: '<path d="M14.5 5.5 18.5 9.5M4.5 19.5l1-4.2L15.8 5a1.4 1.4 0 0 1 2 0l1.2 1.2a1.4 1.4 0 0 1 0 2L8.7 18.5z"/>',
   gift: '<rect x="4" y="9" width="16" height="11" rx="1.5"/><path d="M3 9h18M12 9v11M12 9c-1.5-3.5-5.5-4-5.5-1.7S12 9 12 9zm0 0c1.5-3.5 5.5-4 5.5-1.7S12 9 12 9z"/>',
   wallet: '<path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H18v3M4 7.5V17a2.5 2.5 0 0 0 2.5 2.5H20V8H6.5A2.5 2.5 0 0 1 4 7.5z"/><circle cx="16" cy="13.8" r="1.1"/>',
-  download: '<path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19.5h14"/>'
+  download: '<path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19.5h14"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/>',
+  moon: '<path d="M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10z"/>',
+  flag: '<path d="M5.5 21V4M5.5 4.5h11l-2.2 4 2.2 4h-11"/>',
+  // the categories
+  briefcase: '<rect x="3.5" y="7.5" width="17" height="12" rx="2"/><path d="M9 7.5V6a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 6v1.5M3.5 12.5h17M11 12.5v1.5h2v-1.5"/>',
+  refund: '<path d="M9 14 4.5 9.5 9 5M4.5 9.5H14a5.5 5.5 0 0 1 0 11h-3"/>',
+  arrowIn: '<path d="M17 7 7 17M7 9.5V17h7.5"/>',
+  plusCircle: '<circle cx="12" cy="12" r="8.5"/><path d="M12 8v8M8 12h8"/>',
+  cart: '<path d="M3.5 4.5h2.2l2.1 10.3a1.5 1.5 0 0 0 1.5 1.2h7.6a1.5 1.5 0 0 0 1.5-1.1L20 8H6.3"/><circle cx="10" cy="19.6" r="1.3"/><circle cx="17" cy="19.6" r="1.3"/>',
+  utensils: '<path d="M6.5 3.5v5.5a2.5 2.5 0 0 0 5 0V3.5M9 3.5v17M17 20.5V3.5c-2 1-3.2 3.3-3.2 6.5 0 1.8.9 2.8 3.2 3"/>',
+  car: '<path d="M4.5 17.5v-5l2-5.2c.3-.8 1-1.3 1.9-1.3h7.2c.9 0 1.6.5 1.9 1.3l2 5.2v5M4.5 12.5h15M4.5 17.5h15M6.5 17.5v2M17.5 17.5v2"/><circle cx="8" cy="15" r=".7"/><circle cx="16" cy="15" r=".7"/>',
+  bus: '<rect x="5" y="3.5" width="14" height="14" rx="2.5"/><path d="M5 11h14M8 17.5V20M16 17.5V20M8.5 6.5h7M8.5 14.3v.1M15.5 14.3v.1"/>',
+  bolt: '<path d="M13 3 5.5 13.5H12L11 21l7.5-10.5H12z"/>',
+  city: '<path d="M4 20.5h16M6 20.5V8.5L12 4l6 4.5v12M10 20.5v-4h4v4M9.3 10.5v.1M14.7 10.5v.1M9.3 13.5v.1M14.7 13.5v.1"/>',
+  wifi: '<path d="M3.5 9.5a12 12 0 0 1 17 0M6.5 12.7a7.6 7.6 0 0 1 11 0M9.5 15.8a3.4 3.4 0 0 1 5 0M12 19v.1"/>',
+  play: '<rect x="3.5" y="4.5" width="17" height="12.5" rx="2.5"/><path d="m10.5 8.2 4.3 2.6-4.3 2.6zM8 20.5h8"/>',
+  umbrella: '<path d="M3.5 12a8.5 8.5 0 0 1 17 0zM12 12v6.3a2 2 0 0 1-4 0M12 3.5v-1"/>',
+  medical: '<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8.5v7M8.5 12h7"/>',
+  shirt: '<path d="M8.5 4 4 6.5l1.7 3.8 2.3-1V20h8V9.3l2.3 1L20 6.5 15.5 4c-.5 1.4-1.9 2.3-3.5 2.3S9 5.4 8.5 4z"/>',
+  bag: '<path d="M5.5 8h13l-1 12h-11zM9 10.5V7a3 3 0 0 1 6 0v3.5"/>',
+  sofa: '<path d="M5 11V8.5A2.5 2.5 0 0 1 7.5 6h9A2.5 2.5 0 0 1 19 8.5V11M3.5 13a1.5 1.5 0 0 1 3 0v1.5h11V13a1.5 1.5 0 0 1 3 0v4.5h-17zM5.5 17.5V19M18.5 17.5V19"/>',
+  ticket: '<path d="M4 7.5h16v3a1.5 1.5 0 0 0 0 3v3H4v-3a1.5 1.5 0 0 0 0-3zM14.5 8.5V10M14.5 11.3v1.4M14.5 14v1.5"/>',
+  book: '<path d="M5 5.5A1.5 1.5 0 0 1 6.5 4H19v14H6.5A1.5 1.5 0 0 0 5 19.5zM5 19.5A1.5 1.5 0 0 0 6.5 21H19M9 8h6"/>',
+  suitcase: '<rect x="4" y="7.5" width="16" height="12" rx="2"/><path d="M9 7.5v-2A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5v2M8 7.5v12M16 7.5v12"/>',
+  paw: '<circle cx="6.6" cy="10.2" r="1.6"/><circle cx="9.9" cy="6.4" r="1.6"/><circle cx="14.1" cy="6.4" r="1.6"/><circle cx="17.4" cy="10.2" r="1.6"/><path d="M12 11.5c-2.6 0-5 3.2-5 5.5 0 1.6 1.2 2.5 2.7 2.5 1 0 1.5-.5 2.3-.5s1.3.5 2.3.5c1.5 0 2.7-.9 2.7-2.5 0-2.3-2.4-5.5-5-5.5z"/>',
+  sparkle: '<path d="M11 3.5c.7 3.9 2.6 5.8 6.5 6.5-3.9.7-5.8 2.6-6.5 6.5-.7-3.9-2.6-5.8-6.5-6.5 3.9-.7 5.8-2.6 6.5-6.5zM18 15c.3 1.6 1 2.3 2.5 2.5-1.5.2-2.2.9-2.5 2.5-.3-1.6-1-2.3-2.5-2.5 1.5-.2 2.2-.9 2.5-2.5z"/>',
+  house: '<path d="M4 10.5 12 4l8 6.5V20h-5.5v-5.5h-5V20H4z"/>',
+  percent: '<path d="M18.5 5.5 5.5 18.5"/><circle cx="7.5" cy="7.5" r="2.2"/><circle cx="16.5" cy="16.5" r="2.2"/>',
+  cash: '<rect x="3" y="6.5" width="18" height="11" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6.5 9.5v.1M17.5 14.5v.1"/>',
+  send: '<path d="M20.5 3.5 3.5 10.5l6.8 2.8 2.8 6.8z"/><path d="m10.3 13.3 10.2-9.8"/>',
+  swap: '<path d="M7 4.5 3.5 8 7 11.5M3.5 8h13M17 12.5l3.5 3.5-3.5 3.5M20.5 16h-13"/>',
+  receipt: '<path d="M6 3.5h12v17l-2-1.3-2 1.3-2-1.3-2 1.3-2-1.3-2 1.3zM9 8h6M9 11.5h6M9 15h3.5"/>',
+  dots: '<circle cx="6" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18" cy="12" r="1.3"/>',
+  tag: '<path d="M3.5 12.2V4.5a1 1 0 0 1 1-1h7.7l8.3 8.3a1.4 1.4 0 0 1 0 2l-6.7 6.7a1.4 1.4 0 0 1-2 0z"/><circle cx="8" cy="8" r="1.3"/>'
 };
 export function icon(name, cls) { return `<svg class="${cls || ''}" viewBox="0 0 24 24" aria-hidden="true">${P[name] || ''}</svg>`; }
+
+// ------------------------------------------------------------------ categories: an icon each, in the category's color
+export const CAT_ICON = {
+  'משכורת': 'briefcase', 'קצבאות וביטוח לאומי': 'bank', 'החזרים וזיכויים': 'refund', 'הכנסה מהשקעות': 'trendUp',
+  'העברות נכנסות': 'arrowIn', 'הכנסות אחרות': 'plusCircle', 'מזון וסופרמרקט': 'cart', 'מסעדות וקפה': 'utensils',
+  'דלק ורכב': 'car', 'תחבורה ציבורית ומוניות': 'bus', 'חשבונות בית': 'bolt', 'ארנונה ועירייה': 'city',
+  'תקשורת ואינטרנט': 'wifi', 'מנויים ודיגיטל': 'play', 'ביטוחים': 'umbrella', 'בריאות ופארם': 'medical',
+  'ביגוד והנעלה': 'shirt', 'קניות ואלקטרוניקה': 'bag', 'בית וריהוט': 'sofa', 'פנאי ובידור': 'ticket',
+  'חינוך וילדים': 'book', 'נסיעות וחופשות': 'suitcase', 'חיות מחמד': 'paw', 'טיפוח ויופי': 'sparkle', 'תרומות': 'heart',
+  'הלוואות ומשכנתא': 'house', 'עמלות וריביות': 'percent', 'משיכות מזומן': 'cash', 'העברות ותשלומים': 'send',
+  'מיסים וממשלה': 'receipt', 'כרטיס אשראי - ללא פירוט': 'card', 'כרטיסי אשראי': 'card', 'כללי': 'tag',
+  'השקעות וחיסכון': 'seed', 'סליקת אשראי (מנוטרל)': 'card', 'קבלת הלוואה': 'bank', 'העברה בין החשבונות שלנו': 'swap',
+  'שאר הקטגוריות': 'dots'
+};
+const HEX = /^#[0-9A-Fa-f]{3,8}$/;
+/** a category's color, as the engine keeps it (a color of a category the family added, too) */
+export function catColor(cat) {
+  const c = S.data && S.data.categories && S.data.categories[cat];
+  return c && HEX.test(c.col || '') ? c.col : '#95A39C';
+}
+/** the category's icon on a tile of its color; `dot`: a partner's color in the corner (whose card it was) */
+export function catIcon(cat, small, dot) {
+  const col = cat === 'כרטיסי אשראי' ? 'var(--navy2)' : catColor(cat);
+  return `<span class="cic${small ? ' sm' : ''}" style="--c:${col}" aria-hidden="true">${icon(CAT_ICON[cat] || 'tag')}${dot ? `<i style="background:${dot}"></i>` : ''}</span>`;
+}
+
+// ------------------------------------------------------------------ the look: light, dark or as the phone is
+const THEME_KEY = 'finpal.theme';
+export function themePref() { try { const t = localStorage.getItem(THEME_KEY); return t === 'light' || t === 'dark' ? t : 'auto'; } catch (e) { return 'auto'; } }
+export function applyTheme(pref) {
+  const root = document.documentElement;
+  if (pref === 'light' || pref === 'dark') root.setAttribute('data-theme', pref); else root.removeAttribute('data-theme');
+  try { if (pref === 'auto') localStorage.removeItem(THEME_KEY); else localStorage.setItem(THEME_KEY, pref); } catch (e) { /* private mode */ }
+  // the browser's bar: the page's color in either look
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m => m.remove());
+  const add = (color, media) => { const m = document.createElement('meta'); m.name = 'theme-color'; m.content = color; if (media) m.media = media; document.head.append(m); };
+  if (pref === 'auto') { add('#F6F2EA', '(prefers-color-scheme: light)'); add('#0E1620', '(prefers-color-scheme: dark)'); } else add(pref === 'dark' ? '#0E1620' : '#F6F2EA');
+}
+
+// ------------------------------------------------------------------ motion: numbers that count up, once per screen
+export const calm = () => !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+/** count each [data-count] up from 0 to its sum, in the same format as money() */
+export function countUp(root) {
+  if (calm()) return;
+  root.querySelectorAll('[data-count]').forEach(el => {
+    const to = Math.round(+el.dataset.count), signed = el.dataset.signed === '1', box = el.querySelector('.num');
+    if (!box || !isFinite(to) || Math.abs(to) < 10) return;
+    const final = box.textContent, ms = 750;
+    let t0 = null, done = false;
+    // the sum as written, at the end or after a second whatever the frames did
+    const finish = () => { if (!done) { done = true; box.textContent = final; } };
+    const show = v => { box.textContent = `${v < 0 ? '-' : signed && v > 0 ? '+' : ''}₪${nf0.format(Math.abs(v))}`; };
+    const step = now => {
+      if (done || !box.isConnected) return;
+      if (t0 == null) t0 = now;
+      const k = Math.min(1, (now - t0) / ms);
+      if (k >= 1) { finish(); return; }
+      show(Math.round(to * (1 - Math.pow(1 - k, 3))));
+      requestAnimationFrame(step);
+    };
+    show(0);
+    requestAnimationFrame(step);
+    setTimeout(finish, ms + 300);
+  });
+}
 
 // ------------------------------------------------------------------ feedback
 export function toast(msg, ms = 2800) {
@@ -148,15 +248,17 @@ export async function withBusy(text, fn) {
 }
 
 // ------------------------------------------------------------------ building blocks
-export function line(label, amount, sub, subAmt, attrs) {
-  return `<div class="line${attrs ? ' tap' : ''}" ${attrs || ''}><span class="lbl">${label}${sub ? `<span class="sub">${sub}</span>` : ''}</span>
+/** a row: label and its sub line, the amount and its sub line; `lead`: an icon before the label */
+export function line(label, amount, sub, subAmt, attrs, lead) {
+  return `<div class="line${attrs ? ' tap' : ''}${lead ? ' withic' : ''}" ${attrs || ''}>${lead || ''}<span class="lbl">${label}${sub ? `<span class="sub">${sub}</span>` : ''}</span>
     <span class="amt">${amount}${subAmt ? `<span class="sub">${subAmt}</span>` : ''}</span></div>`;
 }
 
+/** bars: name | bar | amount. `ic`: a category, shown by its icon; `dot`: a color before the name */
 export function barRows(items, max) {
   const mx = max || Math.max(1, ...items.map(i => Math.max(i.value || 0, i.ref || 0)));
-  return `<div class="bars">${items.map(i => `<div class="brow"${i.attrs ? ' ' + i.attrs : ''}><span class="ellip">${i.dot ? `<span class="dot" style="background:${esc(i.dot)}"></span>` : ''}${esc(i.label)}</span>
-    <span class="track"><span class="fill" style="width:${Math.max(0, Math.min(100, (i.value || 0) / mx * 100))}%;background:${esc(i.color || 'var(--green)')}"></span>
+  return `<div class="bars">${items.map(i => `<div class="brow"${i.attrs ? ' ' + i.attrs : ''}><span class="ellip">${i.ic ? catIcon(i.ic, true) : i.dot ? `<span class="dot" style="--c:${esc(i.dot)}"></span>` : ''}${esc(i.label)}</span>
+    <span class="track"><span class="fill" style="width:${Math.max(0, Math.min(100, (i.value || 0) / mx * 100))}%;--c:${esc(i.color || 'var(--green)')}"></span>
     ${i.ref ? `<span class="tick" style="inset-inline-start:${Math.min(100, i.ref / mx * 100)}%"></span>` : ''}</span>
     <span class="amt">${i.text || money(i.value)}</span></div>`).join('')}</div>`;
 }
