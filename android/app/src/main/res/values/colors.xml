@@ -4,5 +4,9 @@
     <color name="navigationBar">#FFFFFF</color>
     <color name="navigationDivider">#E4DED3</color>
     <color name="background">#F6F2EA</color>
+    <!-- the phone in dark mode: the app's dark look (the page follows the phone's setting) -->
+    <color name="statusBarDark">#0E1620</color>
+    <color name="navigationBarDark">#16212C</color>
+    <color name="navigationDividerDark">#2B3845</color>
     <color name="iconBackground">#FBF8F2</color>
 </resources>
