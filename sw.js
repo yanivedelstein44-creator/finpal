@@ -1,8 +1,8 @@
 /* FinPal Family - service worker: the app opens without network, and files shared from the Android share
    sheet ("שיתוף" -> FinPal) are kept until the app takes them. The asset list and version are written by
    tools/build.py. */
-const VERSION = '1.5.0-31fe19abac';
-const ASSETS = ["app.js", "config.js", "fonts/IBMPlexSansHebrew-Medium.ttf", "fonts/IBMPlexSansHebrew-Regular.ttf", "fonts/IBMPlexSansHebrew-SemiBold.ttf", "fonts/OFL-IBMPlexSansHebrew.txt", "guide.html", "guide.js", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-96.png", "icons/maskable-192.png", "icons/maskable-512.png", "index.html", "lib/crypto.js", "lib/drive.js", "lib/engine.js", "lib/family.js", "lib/parsers.js", "lib/pdf.js", "lib/replay.js", "lib/store.js", "lib/vendor/fflate.js", "manifest.webmanifest", "privacy.html", "styles.css", "theme.js", "ui/flows.js", "ui/kit.js", "ui/views.js", "version.json", "worker.js"];
+const VERSION = '1.6.0-3b22895b99';
+const ASSETS = ["app.js", "config.js", "fonts/IBMPlexSansHebrew-Medium.ttf", "fonts/IBMPlexSansHebrew-Regular.ttf", "fonts/IBMPlexSansHebrew-SemiBold.ttf", "fonts/OFL-IBMPlexSansHebrew.txt", "guide.html", "guide.js", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-96.png", "icons/maskable-192.png", "icons/maskable-512.png", "index.html", "lib/bio.js", "lib/crypto.js", "lib/drive.js", "lib/engine.js", "lib/family.js", "lib/parsers.js", "lib/pdf.js", "lib/replay.js", "lib/store.js", "lib/vendor/fflate.js", "manifest.webmanifest", "privacy.html", "styles.css", "theme.js", "ui/flows.js", "ui/kit.js", "ui/views.js", "version.json", "worker.js"];
 const CACHE = 'finpal-family-' + VERSION;
 // pdf.js (for statements saved as PDF) is big and changes rarely: kept in its own cache when first used,
 // not downloaded again with every new version of the app

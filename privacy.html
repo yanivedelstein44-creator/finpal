@@ -37,6 +37,7 @@
   <h2>איפה הנתונים נשמרים</h2>
   <ul>
     <li><b>בטלפון</b>: באחסון של הדפדפן בטלפון בלבד. אפשר לנעול את האפליקציה בקוד.</li>
+    <li><b>כניסה בטביעת אצבע</b>, רק אם מפעילים אותה: הטלפון יוצר מפתח לאתר ושומר אותו אצלו (או במנהל הסיסמאות של גוגל, אם הטלפון מציע). האפליקציה שומרת רק את החלק הציבורי של המפתח ובודקת בעצמה כל אישור. טביעת האצבע עצמה לא מגיעה לאפליקציה, ושום דבר לא נשלח לשרת.</li>
     <li><b>ב-Google Drive של כל אחד מבני הזוג</b>: קובץ אחד, מוצפן (AES-256-GCM). המפתח נמצא רק בשני הטלפונים של המשפחה ובקוד השחזור שלה. לגוגל ולכל מי שאין לו את המפתח, הקובץ הוא רצף תווים חסר משמעות.</li>
     <li>כדי שהטלפון של בן/בת הזוג יוכל לקרוא את הקובץ, הוא משותף בקישור ("כל מי שיש לו את הקישור"). הקישור לא מתפרסם בשום מקום, ובלי המפתח אי אפשר לפתוח את התוכן.</li>
   </ul>
@@ -61,6 +62,7 @@
       <li>With the user's consent it uses the Google Drive <code>drive.file</code> scope, which gives access only to files the app itself created, and the account's email address (shown in the app and used as a sign-in hint).</li>
       <li>Each partner's Drive holds one file encrypted with AES-256-GCM. The key exists only on the family's two phones and in their recovery code. The file is shared by link so the partner's phone can download it; without the key its content cannot be read.</li>
       <li>Google user data is not sold, transferred or used for advertising or any purpose other than showing the household's data to its two members. FinPal Family's use of information received from Google APIs adheres to the Google API Services User Data Policy, including the Limited Use requirements.</li>
+      <li>Optional fingerprint unlock uses WebAuthn with the phone's own authenticator: the app keeps only the public key and verifies each assertion locally; no biometric data reaches the app and nothing is sent to a server.</li>
       <li>Users can delete local data in the app (More, then delete data from this phone), delete the Drive file, and revoke access at <code>myaccount.google.com/permissions</code>.</li>
     </ul>
   </section>

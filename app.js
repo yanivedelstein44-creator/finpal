@@ -6,8 +6,9 @@ import { store, inbox, persist } from './lib/store.js';
 import * as D from './lib/drive.js';
 import * as C from './lib/crypto.js';
 import { Family } from './lib/family.js';
+import * as B from './lib/bio.js';
 
-const APP_VERSION = '1.5.0';
+const APP_VERSION = '1.6.0';
 const DEFAULTS = Object.assign({ clientId: '', apiKey: '' }, globalThis.FINPAL_FAMILY || {});
 const UNLOCK_KEY = 'fp_unlocked';
 
@@ -398,12 +399,16 @@ const actions = {
   signedIn: () => !!D.token(),
   inApp: () => F.inApp(),
   hasPin: () => !!S.hasPin,
+  hasBio: () => !!S.hasBio,
+  bioOk: () => !!S.bioOk,
+  bioChanged: on => { S.hasBio = !!on; refreshScreen(); },
   pinChanged: on => { S.hasPin = !!on; actions.markUnlocked(); refreshScreen(); },
   version: () => APP_VERSION,
   enterApp: () => enterApp(),
   afterJoin: async () => { try { await fam.pull(); } catch (e) { S.syncError = e; } await safeRebuild(); },
   wipe: async () => {
     if (!(await F.confirmSheet({ title: 'למחוק את הנתונים מהטלפון?', text: 'מה שנשמר בדרייב נשאר שם, ואפשר לחזור עם קוד השחזור או עם הזמנה. שינויים שלא נשמרו בדרייב יימחקו.', yes: 'מחיקה', danger: true }))) return;
+    try { const b = await store.get('bio'); if (b) await B.forget(b); } catch (e) { /* the phone keeps it; it opens nothing */ }
     await store.wipe();
     try { localStorage.clear(); sessionStorage.clear(); } catch (e) { /* ignore */ }
     announce(); // another open window of the app starts over too
@@ -444,6 +449,8 @@ const actions = {
       case 'pin-change': F.changePinSheet(); break;
       case 'pin-on': F.pinOnSheet(); break;
       case 'pin-off': F.pinOffSheet(); break;
+      case 'bio-on': F.bioOnSheet(); break;
+      case 'bio-off': F.bioOffSheet(); break;
       case 'recovery': F.recoverySheet(); break;
       case 'lock-now': if (S.hasPin) { sessionStorage.removeItem(UNLOCK_KEY); lock(); } break;
       case 'privacy': F.privacySheet(); break;
@@ -574,7 +581,7 @@ let busyWork = 0;
 async function reloadFromPhone() {
   if (!fam.ready || syncing || busyWork) return;
   const before = fam.events().length, cfgBefore = JSON.stringify(fam.cfg), household = fam.cfg.recovery;
-  try { await fam.load(); S.hasPin = !!(await store.get('pin')); } catch (e) { return; }
+  try { await fam.load(); S.hasPin = !!(await store.get('pin')); S.hasBio = !!(await store.get('bio')); } catch (e) { return; }
   if (!fam.ready || fam.cfg.recovery !== household) { location.replace(D.appBase()); return; }
   if (fam.events().length !== before || JSON.stringify(fam.cfg) !== cfgBefore) {
     S.names = fam.names();
@@ -696,6 +703,9 @@ window.addEventListener('scroll', () => $('#topbar').classList.toggle('scrolled'
     if (typeof next === 'function') next();
   };
   try { S.hasPin = !!(await store.get('pin')); } catch (e) { S.hasPin = false; }
+  try { S.hasBio = !!(await store.get('bio')); } catch (e) { S.hasBio = false; }
+  // can the phone check a fingerprint here: asked once, without holding up the opening
+  B.available().then(ok => { S.bioOk = ok; if (ok && S.tab === 'more' && !$('#app').classList.contains('hidden')) V.render(); });
   if (!S.hasPin) { actions.markUnlocked(); await go(); return; }
   let last = 0;
   try { last = +(sessionStorage.getItem(UNLOCK_KEY) || 0); } catch (e) { last = 0; }

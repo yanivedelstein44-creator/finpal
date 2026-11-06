@@ -684,6 +684,8 @@ export function viewMore() {
   html += A.hasPin() ? `<section class="card"><h2>${icon('shield')} אבטחה</h2>
     ${line('קוד נעילה', '<span class="tag a">פעיל</span>', 'נדרש בכל פתיחה של האפליקציה')}
     ${line('נעילה אוטומטית', `<select id="lockMin" aria-label="נעילה אוטומטית" style="width:auto;padding:6px 10px">${[1, 3, 10, 30].map(m => `<option value="${m}" ${(cfg.lockMin || 3) === m ? 'selected' : ''}>אחרי ${m} דק׳</option>`).join('')}</select>`, 'כשהאפליקציה ברקע')}
+    ${A.hasBio() || A.bioOk() ? line('כניסה בטביעת אצבע', A.hasBio() ? '<span class="tag a">פעילה</span>' : '<span class="tag">כבויה</span>', 'פותחים בלי להקליד קוד. הקוד נשאר לגיבוי') : ''}
+    ${A.hasBio() ? '<button class="btn" data-act="bio-off">כיבוי טביעת האצבע</button>' : A.bioOk() ? `<button class="btn" data-act="bio-on">${icon('finger')} הפעלת כניסה בטביעת אצבע</button>` : ''}
     <button class="btn" data-act="pin-change">${icon('lock')} שינוי קוד הנעילה</button>
     <button class="btn" data-act="pin-off">כיבוי קוד הנעילה</button>
     <button class="btn" data-act="recovery">${icon('key')} קוד השחזור של המשפחה</button>
@@ -691,6 +693,7 @@ export function viewMore() {
     : `<section class="card"><h2>${icon('shield')} אבטחה</h2>
     ${line('קוד נעילה', '<span class="tag">כבוי</span>', 'אפשר לבקש קוד בכל פתיחה של האפליקציה')}
     <button class="btn" data-act="pin-on">${icon('lock')} הפעלת קוד נעילה</button>
+    ${A.bioOk() ? '<p class="small" style="margin:6px 0 2px">עם קוד נעילה אפשר להוסיף גם כניסה בטביעת אצבע.</p>' : ''}
     <button class="btn" data-act="recovery">${icon('key')} קוד השחזור של המשפחה</button></section>`;
   // the look: light, dark or as the phone is set
   const tp = themePref();

@@ -283,6 +283,9 @@ ol.how li { margin: 6px 0; }
 .keypad button:active { background: var(--green-tint); }
 .keypad button[disabled] { opacity: .4; }
 .lock .forgot { margin-top: 18px; background: none; border: none; color: var(--navy2); font-size: 14px; }
+.lock .bio-btn { margin-top: 18px; color: var(--head); }
+.lock .bio-btn svg { width: 22px; height: 22px; color: var(--green); }
+.sheet-modal h3 > svg { width: 22px; height: 22px; vertical-align: -4px; color: var(--green); }
 
 /* ---------- overlays */
 .overlay { position: fixed; inset: 0; z-index: 40; background: var(--scrim); display: flex; align-items: flex-end; justify-content: center; }

@@ -5,6 +5,7 @@ import {
   notice, copyText, shareText, ago, catIcon
 } from './kit.js';
 import * as C from '../lib/crypto.js';
+import * as B from '../lib/bio.js';
 import * as V from './views.js';
 import * as D from '../lib/drive.js';
 
@@ -67,11 +68,12 @@ function pasteInvite() {
 
 // ------------------------------------------------------------------ the lock code
 /** a keypad; resolves with the 4 digits typed */
-export function pinPad({ host, heading, sub, onPin, cancel, forgot }) {
+export function pinPad({ host, heading, sub, onPin, cancel, forgot, bio }) {
   host.innerHTML = `<img src="icons/icon-192.png" alt=""><h1 id="lockTitle">${heading}</h1><p id="pinSub">${sub || ''}</p>
     <div class="pins" id="pins" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
     <div class="keypad" role="group" aria-label="מקלדת מספרים">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => `<button data-k="${n}">${n}</button>`).join('')}
       <button class="fn" data-k="cancel">${cancel ? 'ביטול' : ''}</button><button data-k="0">0</button><button class="fn" data-k="del" aria-label="מחיקה">מחיקה</button></div>
+    ${bio ? `<button class="btn small bio-btn" data-k="bio">${icon('finger')} כניסה בטביעת אצבע</button>` : ''}
     ${forgot ? '<button class="forgot" data-k="forgot">שכחתי את הקוד</button>' : ''}`;
   let code = '', locked = false;
   const dots = () => $$('#pins i', host).forEach((d, i) => d.classList.toggle('on', i < code.length));
@@ -81,6 +83,7 @@ export function pinPad({ host, heading, sub, onPin, cancel, forgot }) {
     if (k === 'del') { code = code.slice(0, -1); dots(); return; }
     if (k === 'cancel') { if (cancel) cancel(); return; }
     if (k === 'forgot') { if (forgot) forgot(); return; }
+    if (k === 'bio') { if (bio) bio(); return; }
     if (code.length >= 4) return;
     code += k; dots();
     if (code.length === 4) {
@@ -140,17 +143,36 @@ export async function lockScreen({ onUnlock }) {
   const host = $('#lock');
   host.classList.remove('hidden');
   const myName = S.names[S.fam.role] || '';
-  pinPad({
-    host, heading: myName ? `שלום ${esc(myName)}` : 'FinPal', sub: 'הקלידו את קוד הנעילה',
-    forgot: () => forgotPin(),
+  const rec = await A.store.get('bio');
+  let open = false, asking = false;
+  // the code or the fingerprint, whichever comes first, opens once
+  const done = async () => {
+    if (open) return;
+    open = true;
+    host.classList.add('hidden'); host.innerHTML = '';
+    await onUnlock();
+  };
+  const finger = async () => {
+    if (!rec || asking || open) return;
+    asking = true;
+    const ok = await B.unlock(rec);
+    asking = false;
+    if (open) return;
+    if (ok) { await A.store.set('lockout', { fails: 0, until: 0 }); await done(); return; }
+    pad.say('טביעת האצבע לא אושרה. אפשר לנסות שוב, או להקליד את הקוד.');
+  };
+  const pad = pinPad({
+    host, heading: myName ? `שלום ${esc(myName)}` : 'FinPal', sub: rec ? 'טביעת אצבע או קוד הנעילה' : 'הקלידו את קוד הנעילה',
+    forgot: () => forgotPin(), bio: rec ? finger : null,
     onPin: async (pin, say) => {
       const r = await verifyPin(pin);
       if (!r.ok) { say(r.msg); return false; }
-      host.classList.add('hidden'); host.innerHTML = '';
-      await onUnlock();
+      await done();
       return true;
     }
   });
+  // the phone's own prompt right away, as the app opens (or comes back); the button is there if it is closed
+  if (rec) setTimeout(() => { if (document.visibilityState === 'visible') finger(); }, 350);
 }
 
 function forgotPin() {
@@ -753,7 +775,7 @@ export function recurringSheet(id) {
 export function privacySheet() {
   const partner = S.names[S.fam.other] || 'בן/בת הזוג';
   sheet(`<h3>איפה הנתונים שלנו נשמרים</h3>
-    <div class="result">${icon('phone', 'ok')}<div><b>בטלפון</b><span class="small">שמורים בטלפון בלבד. אפשר לנעול את האפליקציה בקוד (עוד ← אבטחה).</span></div></div>
+    <div class="result">${icon('phone', 'ok')}<div><b>בטלפון</b><span class="small">שמורים בטלפון בלבד. אפשר לנעול את האפליקציה בקוד, ולפתוח בטביעת אצבע (עוד ← אבטחה). טביעת האצבע נבדקת בטלפון עצמו ולא מגיעה לאפליקציה.</span></div></div>
     <div class="result">${icon('cloud', 'ok')}<div><b>ב-Google Drive</b><span class="small">לכל אחד מכם קובץ מוצפן בדרייב שלו. גוגל, ומי שיקבל את הקובץ, יראו רק רצף תווים חסר משמעות. המפתח נמצא רק בשני הטלפונים.</span></div></div>
     <div class="result">${icon('bank', 'ok')}<div><b>אין חיבור לבנק</b><span class="small">האפליקציה לא יודעת את הסיסמאות שלכם לבנק או לאשראי, ולא מתחברת אליהם. היא קוראת רק קבצים שהורדתם.</span></div></div>
     <div class="result">${icon('shield', 'ok')}<div><b>אין שרתים</b><span class="small">אין לנו שרת, ואף אחד מלבדך ומלבד ${esc(partner)} לא רואה את הנתונים.</span></div></div>
@@ -807,12 +829,64 @@ export function pinOffSheet() {
       if (!r.ok) { say(r.msg); return false; }
       await A.store.del('pin');
       await A.store.del('lockout');
+      const bio = await A.store.get('bio');
+      if (bio) { await B.forget(bio); await A.store.del('bio'); A.bioChanged(false); }
       closeSheet();
       A.pinChanged(false);
       toast('קוד הנעילה כובה');
       return true;
     }
   });
+}
+
+/** the fingerprint, beside the lock code: the code first, then a word on what the phone will ask, then the phone */
+export function bioOnSheet() {
+  sheet('<div id="boHost" class="lock" style="position:static;min-height:60vh"></div>');
+  pinPad({
+    host: $('#boHost'), heading: 'כניסה בטביעת אצבע', sub: 'לאישור, הקלידו את קוד הנעילה', cancel: closeSheet,
+    onPin: async (pin, say) => {
+      const r = await verifyPin(pin);
+      if (!r.ok) { say(r.msg); return false; }
+      bioExplain();
+      return true;
+    }
+  });
+}
+
+function bioExplain() {
+  const myName = S.names[S.fam.role] || '';
+  sheet(`<h3>${icon('finger')} כניסה בטביעת אצבע</h3>
+    <p>מעכשיו אפשר לפתוח את האפליקציה בטביעת האצבע של הטלפון (או בנעילת המסך שלו). קוד הנעילה נשאר, למקרה שטביעת האצבע לא עובדת.</p>
+    <ul class="plain"><li>הטלפון ישאל עכשיו פעם אחת. הוא עשוי להציע לשמור "מפתח גישה" (passkey), בטלפון או במנהל הסיסמאות של גוגל. זה המפתח שפותח את האפליקציה.</li>
+      <li>טביעת האצבע עצמה לא מגיעה לאפליקציה, והאפליקציה לא שולחת שום דבר. היא רק בודקת שהטלפון אישר.</li>
+      <li>מי שיודע את קוד המסך של הטלפון יוכל לפתוח גם את האפליקציה.</li></ul>
+    <div class="error" id="boErr" role="alert"></div>
+    <button class="btn primary" id="boGo">${icon('finger')} הפעלה</button><button class="btn ghost" id="boNo">ביטול</button>`);
+  $('#boNo').onclick = closeSheet;
+  $('#boGo').onclick = async () => {
+    $('#boGo').disabled = true;
+    $('#boErr').textContent = '';
+    try {
+      const rec = await B.enroll({ rpId: location.hostname, name: myName ? `FinPal - ${myName}` : 'FinPal' });
+      await A.store.set('bio', rec);
+      closeSheet();
+      A.bioChanged(true);
+      toast('כניסה בטביעת אצבע הופעלה');
+    } catch (e) {
+      $('#boGo').disabled = false;
+      $('#boErr').textContent = e && e.name === 'NotAllowedError' ? 'זה בוטל, או שהטלפון לא אישר. אפשר לנסות שוב.'
+        : 'הטלפון לא הצליח להפעיל טביעת אצבע לאפליקציה הזו. קוד הנעילה ממשיך לעבוד.';
+    }
+  };
+}
+
+export async function bioOffSheet() {
+  if (!(await confirmSheet({ title: 'לכבות כניסה בטביעת אצבע?', text: 'האפליקציה תיפתח רק עם קוד הנעילה. אפשר להפעיל שוב בכל זמן.', yes: 'כיבוי' }))) return;
+  const rec = await A.store.get('bio');
+  if (rec) await B.forget(rec);
+  await A.store.del('bio');
+  A.bioChanged(false);
+  toast('כניסה בטביעת אצבע כובתה');
 }
 
 export function changePinSheet() {
