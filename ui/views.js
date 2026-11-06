@@ -180,13 +180,14 @@ export function hideRecap(m) { try { localStorage.setItem(RECAP_KEY, m); } catch
 export function recapCard(d, now = new Date()) {
   if (now.getDate() > 10) return '';
   const prev = addMonths(d.month, -1);
-  const m = (d.months || []).find(x => x.m === prev);
-  if (!m || !(m.inc > 0 || m.exp > 0) || recapHidden() === prev) return '';
-  const before = (d.months || []).find(x => x.m === addMonths(prev, -1));
+  const mm = (d.months || []).find(x => x.m === prev);
+  if (!mm || !(mm.inc > 0 || mm.exp > 0) || recapHidden() === prev) return '';
+  const m = monthOwn(mm);
+  const bb = (d.months || []).find(x => x.m === addMonths(prev, -1)), before = bb && Object.assign(monthOwn(bb), { m: bb.m });
   const all = ((d.month_cats || {})[prev] || []).filter(c => c.t > 0);
   const top = all.filter(c => c.c !== UND).slice(0, 3);
   const und = all.find(c => c.c === UND), gen = all.find(c => c.c === 'כללי');
-  const net = m.net;
+  const net = m.diff;
   let cmp = '';
   if (before && before.exp > 0) {
     const dlt = m.exp - before.exp;
@@ -195,8 +196,9 @@ export function recapCard(d, now = new Date()) {
   }
   return `<section class="card recap tap" data-open-month="${esc(prev)}" aria-label="סיכום ${esc(monthName(prev))}">
     <h2>${icon('calendar')} החודש שהיה: ${esc(monthLabel(prev))} <button class="btn ghost small" data-act="recap-hide" data-m="${esc(prev)}" style="padding:0">הסתרה</button></h2>
-    <div class="big ${net >= 0 ? 'pos' : 'neg'}">${net >= 0 ? `נשארו ${abs$(net)}` : `יצאו ${abs$(net)} יותר ממה שנכנס`}</div>
-    <div class="trio"><div><span>נכנסו</span><b>${abs$(m.inc)}</b></div><div><span>יצאו</span><b>${abs$(m.exp)}</b></div><div><span>נחסכו</span><b>${abs$(m.sav)}</b></div></div>
+    <div class="big ${net >= 0 ? 'pos' : 'neg'}">${net >= 0 ? `נכנסו ${abs$(net)} יותר ממה שיצא` : `יצאו ${abs$(net)} יותר ממה שנכנס`}</div>
+    <div class="trio"><div><span>נכנסו</span><b>${abs$(m.inc)}</b></div><div><span>יצאו</span><b>${abs$(m.exp)}</b></div><div><span>${m.sav < 0 ? 'נמשכו מהחיסכון' : 'נחסכו'}</span><b>${abs$(Math.abs(m.sav))}</b></div></div>
+    ${m.bi || m.bo ? `<p class="small" style="margin:2px 0 6px">ובנפרד, העברות גדולות שעוד לא סומנו: ${[m.bo ? `${money(m.bo)} יצאו` : '', m.bi ? `${money(m.bi)} נכנסו` : ''].filter(Boolean).join(', ')}.</p>` : ''}
     ${cmp ? `<p class="small" style="margin:2px 0 6px">יצאו ${cmp}</p>` : ''}
     ${top.length ? `<p class="small" style="margin:8px 0 0;color:var(--ink)">על מה יצא הכי הרבה</p>${top.map(c => line(esc(c.c), money(c.t), '', '', '', catIcon(c.c, true))).join('')}` : ''}
     ${und && m.exp && und.t >= 0.2 * m.exp ? `<p class="small" style="margin:6px 0 0">${money(und.t)} יצאו בחיובי אשראי בלי פירוט. כדי לראות על מה, ייבאו את דף האשראי של ${esc(monthName(prev))}.</p>` : ''}
@@ -507,27 +509,61 @@ export function viewTx() {
 }
 
 // ------------------------------------------------------------------ months
+/** a month without its big transfers (money moving: shown apart until the family says what each is) */
+export function monthOwn(m) {
+  const inc = m.inc - (m.bi || 0), exp = m.exp - (m.bo || 0);
+  return { inc, exp, sav: m.sav || 0, diff: inc - exp, bi: m.bi || 0, bo: m.bo || 0 };
+}
+/** the savings line of a month: put aside, or taken out */
+const savRow = sav => (sav > 0 ? { label: 'נחסך', value: sav, color: 'var(--navy2)' }
+  : { label: 'נמשך מהחיסכון', value: -sav, text: money(-sav), color: 'var(--navy2)' });
+
 export function viewMonths() {
   if (!hasData()) return `${title('חודשים')}${emptyHome()}`;
   const months = (S.data.months || []).slice().reverse();
   const six = months.slice(0, 6).reverse();
-  const mx = Math.max(1, ...six.map(m => Math.max(m.inc, m.exp)));
-  let html = `${title('חודשים', 'הכנסות מול הוצאות')}<section class="card"><div class="cols">${six.map(m => `<div class="col"><div class="duo">
-      <i style="height:${m.inc / mx * 100}%;background:var(--green)"></i><i style="height:${m.exp / mx * 100}%;background:var(--gold)"></i></div><span>${shortMonth(m.m)}</span></div>`).join('')}</div>
+  const mx = Math.max(1, ...six.map(m => { const o = monthOwn(m); return Math.max(o.inc, o.exp); }));
+  let html = `${title('חודשים', 'הכנסות מול הוצאות')}<section class="card"><div class="cols">${six.map(m => { const o = monthOwn(m); return `<div class="col"><div class="duo">
+      <i style="height:${Math.max(0, o.inc) / mx * 100}%;background:var(--green)"></i><i style="height:${Math.max(0, o.exp) / mx * 100}%;background:var(--gold)"></i></div><span>${shortMonth(m.m)}</span></div>`; }).join('')}</div>
     <div class="legend"><span><span class="dot" style="background:var(--green)"></span>נכנסו</span><span><span class="dot" style="background:var(--gold)"></span>יצאו</span></div></section>`;
-  const mx2 = Math.max(1, ...months.map(m => Math.max(m.inc, m.exp)));
+  const nBig = ((S.data.transactions) || []).filter(t => t.b).length;
+  if (nBig) html += notice(`${nBig === 1 ? 'העברה גדולה אחת לא סומנה' : `${fmt(nBig)} העברות גדולות לא סומנו`}, והן מוצגות בנפרד מההוצאות. פתחו את החודש וסמנו מה כל אחת: חיסכון או השקעות, חשבון שלכם, או הוצאה.`);
+  const mx2 = Math.max(1, ...months.map(m => { const o = monthOwn(m); return Math.max(o.inc, o.exp, o.bi, o.bo); }));
   html += months.map(m => {
-    const open = S.openMonth === m.m;
+    const open = S.openMonth === m.m, o = monthOwn(m);
     const cats = (S.data.month_cats && S.data.month_cats[m.m]) || [];
+    const rows = [{ label: 'נכנסו', value: o.inc, color: 'var(--green)' }, { label: 'יצאו', value: o.exp, color: 'var(--gold)' }];
+    if (o.sav) rows.push(savRow(o.sav));
+    if (o.bi || o.bo) rows.push({ label: 'העברות גדולות', value: Math.max(o.bi, o.bo), color: 'var(--ink3)',
+      text: [o.bo ? `${money(o.bo)} יצאו` : '', o.bi ? `${money(o.bi)} נכנסו` : ''].filter(Boolean).join(' · ') });
     return `<section class="card tap" data-month="${esc(m.m)}" aria-expanded="${open}">
-      <div class="line" style="padding:0"><span class="lbl" style="font-weight:600;font-size:17px">${monthLabel(m.m)}</span><span class="amt ${m.net >= 0 ? 'pos' : 'neg'}">${money(m.net, true)}</span></div>
-      <div style="margin-top:8px">${barRows([{ label: 'נכנסו', value: m.inc, color: 'var(--green)' }, { label: 'יצאו', value: m.exp, color: 'var(--gold)' }]
-        .concat(m.sav ? [{ label: 'נחסך', value: m.sav, color: 'var(--navy2)' }] : []), mx2)}</div>
-      ${open ? `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--hair)">${cats.length ? barRows(cats.map(c => ({ label: c.c, ic: c.c, value: c.t, color: c.col })))
-        : '<p class="small" style="margin:0">פירוט לפי קטגוריה נשמר לחצי השנה האחרונה.</p>'}${monthDetails(m.m)}</div>` : ''}
+      <div class="line" style="padding:0"><span class="lbl" style="font-weight:600;font-size:17px">${monthLabel(m.m)}<span class="sub">${o.diff >= 0 ? 'נכנס יותר ממה שיצא' : 'יצא יותר ממה שנכנס'}</span></span><span class="amt ${o.diff >= 0 ? 'pos' : 'neg'}">${money(o.diff, true)}</span></div>
+      <div style="margin-top:8px">${barRows(rows, mx2)}</div>
+      ${open ? `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--hair)">${bigList(m.m)}${cats.length ? barRows(cats.map(c => ({ label: c.c, ic: c.c, value: c.t, color: c.col })))
+        : '<p class="small" style="margin:0">אין פירוט לפי קטגוריה לחודש הזה.</p>'}${monthDetails(m.m)}</div>` : ''}
     </section>`;
   }).join('');
   return html;
+}
+
+// generic transfer lines (any person): marking one teaches nothing about the next; a bank or fund name does
+const GENERIC_MOVE = /^(העברה|הע\.|העב\.)|דיגיטל|bit|ביט|paybox|פייבוקס|פיי בוקס/i;
+export const learnsMove = t => !GENERIC_MOVE.test(String(t.s || '').trim());
+/** the big transfers of a month that nobody has said what they are, each with what it can be */
+function bigList(month) {
+  const rows = ((S.data && S.data.transactions) || []).filter(t => t.b && (t.cd || t.d).slice(0, 7) === month)
+    .sort((a, b) => (a.d < b.d ? -1 : 1));
+  if (!rows.length) return '';
+  return `<div class="bigmoves"><p class="small" style="margin:0 0 2px;color:var(--ink)"><b>העברות גדולות: מה הן?</b></p>
+    <p class="small" style="margin:0 0 4px">הן לא נספרות כהכנסה או כהוצאה של החודש עד שמסמנים. הסימון נשמר בשני הטלפונים.</p>
+    ${rows.map(t => {
+      const out = t.a < 0;
+      const opts = out ? [['השקעות וחיסכון', 'לחיסכון או להשקעות'], ['העברה בין החשבונות שלנו', 'לחשבון שלנו'], ['העברות ותשלומים', 'הוצאה']]
+        : [['השקעות וחיסכון', 'מחיסכון או מהשקעות'], ['העברה בין החשבונות שלנו', 'מחשבון שלנו'], ['העברות נכנסות', 'הכנסה']];
+      return `<div class="bigmove">${line(`<span class="ellip">${esc(t.s)}</span>`, `<span class="${out ? '' : 'pos'}">${money(t.a, true)}</span>`, esc(dm(t.d)), '',
+        t.u ? `data-tx="${esc(t.u)}"` : '', catIcon(t.c, false, colorOf(t.o)))}
+        <div class="row-btns">${opts.map(([c, l]) => `<button class="btn small" data-move="${esc(t.u || '')}" data-mcat="${esc(c)}">${l}</button>`).join('')}</div></div>`;
+    }).join('')}</div>`;
 }
 
 /** a month beside the month before and the same month a year before: the whole, and the categories that moved
@@ -756,13 +792,15 @@ function bind() {
   $$('[data-month]', v).forEach(el => el.onclick = () => { S.openMonth = S.openMonth === el.dataset.month ? null : el.dataset.month; render(); });
   $$('[data-person]', v).forEach(el => el.onclick = () => { S.person = el.dataset.person; render(); });
   $$('[data-cat]', v).forEach(el => el.onclick = () => { S.txCat = el.dataset.cat; S.txQuery = ''; S.txOwner = ''; go('tx'); });
-  $$('[data-tx]', v).forEach(el => el.onclick = () => A.openTx(el.dataset.tx));
+  // a line inside an open month opens the line, and leaves the month open
+  $$('[data-tx]', v).forEach(el => el.onclick = e => { e.stopPropagation(); A.openTx(el.dataset.tx); });
   $$('[data-rec]', v).forEach(el => el.onclick = () => A.openRecurring(el.dataset.rec));
   $$('[data-card]', v).forEach(el => el.onclick = () => A.pickOwner([el.dataset.card]));
   $$('[data-budget]', v).forEach(el => el.onclick = () => A.act('budget-edit', el));
   $$('[data-open-month]', v).forEach(el => el.onclick = e => { e.stopPropagation(); S.openMonth = el.dataset.openMonth; S.scrollMonth = true; go('months'); });
   $$('[data-del-import]', v).forEach(el => el.onclick = e => { e.stopPropagation(); A.removeImport(el.dataset.delImport); });
   $$('[data-goal]', v).forEach(el => el.onclick = () => A.act('goal-open', el));
+  $$('[data-move]', v).forEach(el => el.onclick = e => { e.stopPropagation(); A.act('move', el); });
   $$('[data-theme-pick]', v).forEach(el => el.onclick = () => A.setTheme(el.dataset.themePick));
   $$('[data-act]', v).forEach(el => el.onclick = e => { e.stopPropagation(); A.act(el.dataset.act, el); });
   const s = $('#txSearch');

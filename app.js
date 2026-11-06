@@ -8,7 +8,7 @@ import * as C from './lib/crypto.js';
 import { Family } from './lib/family.js';
 import * as B from './lib/bio.js';
 
-const APP_VERSION = '1.6.0';
+const APP_VERSION = '1.6.1';
 const DEFAULTS = Object.assign({ clientId: '', apiKey: '' }, globalThis.FINPAL_FAMILY || {});
 const UNLOCK_KEY = 'fp_unlocked';
 
@@ -442,6 +442,15 @@ const actions = {
       case 'goal-new': F.goalSheet(null); break;
       case 'goal-open': F.goalSheet(+el.dataset.goal); break;
       case 'recap-hide': V.hideRecap(el.dataset.m); V.render(); break;
+      case 'move': {
+        // a big transfer, said what it is: a bank's or a fund's name teaches the next ones too
+        const t = ((S.data && S.data.transactions) || []).find(x => x.u === el.dataset.move);
+        if (!t) break;
+        const learn = V.learnsMove(t) && el.dataset.mcat !== t.c;
+        await actions.setCategory([t.u], el.dataset.mcat, learn);
+        toast(learn ? `סומן. גם העברות הבאות מ"${t.s}" יסומנו כך` : 'סומן ונשמר בשני הטלפונים');
+        break;
+      }
       case 'invite': F.inviteSheet(); break;
       case 'connect': F.connectScreen(true); break;
       case 'sync': sync({ manual: true }); break;

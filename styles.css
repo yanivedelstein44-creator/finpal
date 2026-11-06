@@ -378,3 +378,9 @@ ul.plain li { margin: 3px 0; max-width: 100%; }
 @keyframes grow { from { transform: scaleX(0); } }
 @keyframes rise { from { transform: scaleY(0); } }
 @keyframes ring { from { stroke-dashoffset: var(--full); } }
+
+/* ---------- big transfers to say what they are */
+.bigmoves { margin: 0 0 12px; padding: 10px 12px 4px; border-radius: 14px; background: var(--soft); border: 1px solid var(--hair); }
+.bigmove + .bigmove { border-top: 1px solid var(--hair); }
+.bigmove .row-btns { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 10px; }
+.bigmove .row-btns .btn { flex: 1 1 auto; margin: 0; padding: 7px 8px; font-size: 13.5px; min-height: 36px; }

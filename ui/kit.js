@@ -161,7 +161,7 @@ export const CAT_ICON = {
   'הלוואות ומשכנתא': 'house', 'עמלות וריביות': 'percent', 'משיכות מזומן': 'cash', 'העברות ותשלומים': 'send',
   'מיסים וממשלה': 'receipt', 'כרטיס אשראי - ללא פירוט': 'card', 'כרטיסי אשראי': 'card', 'כללי': 'tag',
   'השקעות וחיסכון': 'seed', 'סליקת אשראי (מנוטרל)': 'card', 'קבלת הלוואה': 'bank', 'העברה בין החשבונות שלנו': 'swap',
-  'שאר הקטגוריות': 'dots'
+  'שאר הקטגוריות': 'dots', 'החזר הלוואה קצרה': 'refund', 'כסף שעבר דרך החשבון': 'swap'
 };
 const HEX = /^#[0-9A-Fa-f]{3,8}$/;
 /** a category's color, as the engine keeps it (a color of a category the family added, too) */
